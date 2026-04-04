@@ -4,13 +4,9 @@ use iced::alignment;
 use iced::mouse;
 use iced::widget::canvas;
 use iced::widget::text as w_text;
-use iced::widget::{column, container, row, text};
-use iced::{Color, Element, Length, Point, Rectangle, Renderer, Size, Theme};
+use iced::widget::{button, column, container, stack, text};
+use iced::{Background, Border, Color, Element, Length, Point, Rectangle, Renderer, Size, Theme};
 use iced_color_map::editor::{self, ColorMapEditor, Event};
-
-// ---------------------------------------------------------------------------
-// Application
-// ---------------------------------------------------------------------------
 
 fn main() -> iced::Result {
     iced::application(App::boot, App::update, App::view)
@@ -23,11 +19,12 @@ fn main() -> iced::Result {
 struct App {
     editor: ColorMapEditor,
     accepted_map: [Rgb; 256],
-    status: &'static str,
+    editing: bool,
 }
 
 #[derive(Debug, Clone)]
 enum Msg {
+    OpenEditor,
     Editor(editor::Message),
 }
 
@@ -44,21 +41,24 @@ impl App {
         Self {
             editor: ColorMapEditor::new(&initial),
             accepted_map: table,
-            status: "Editing — press Accept to update the preview.",
+            editing: false,
         }
     }
 
     fn update(&mut self, message: Msg) {
         match message {
+            Msg::OpenEditor => {
+                self.editing = true;
+            }
             Msg::Editor(msg) => {
                 if let Some(event) = self.editor.update(msg) {
                     match event {
                         Event::Accepted(map) => {
                             self.accepted_map = *map.as_table();
-                            self.status = "Accepted — preview updated.";
+                            self.editing = false;
                         }
                         Event::Cancelled => {
-                            self.status = "Cancelled — preview unchanged.";
+                            self.editing = false;
                         }
                     }
                 }
@@ -67,52 +67,83 @@ impl App {
     }
 
     fn view(&self) -> Element<Msg> {
-        let editor_panel = self.editor.view().map(Msg::Editor);
-
         let preview_grid = canvas(PreviewProgram {
             colors: &self.accepted_map,
         })
         .width(Length::Fixed(PREVIEW_SIDE))
         .height(Length::Fixed(PREVIEW_SIDE));
 
-        let preview_panel = column![
-            text("Accepted Color Map Preview")
-                .size(16)
-                .font(iced::Font::MONOSPACE),
-            preview_grid,
-            text(self.status).size(13),
-            text("Edit colors on the left, then click Accept.")
-                .size(12)
-                .color(Color {
-                    r: 0.6,
-                    g: 0.6,
-                    b: 0.6,
-                    a: 1.0,
-                }),
-        ]
-        .spacing(10)
-        .padding(16);
+        let main_view = container(
+            column![
+                button(text("Edit Color Map").size(16))
+                    .on_press(Msg::OpenEditor)
+                    .padding(12),
+                text("Current Color Map").size(14).font(iced::Font::MONOSPACE),
+                preview_grid,
+            ]
+            .spacing(12)
+            .align_x(alignment::Horizontal::Center),
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .align_x(alignment::Horizontal::Center)
+        .align_y(alignment::Vertical::Center)
+        .padding(24);
 
-        let layout = row![
-            editor_panel,
-            container(preview_panel)
+        if self.editing {
+            let backdrop = container(text(""))
                 .width(Length::Fill)
-                .align_y(alignment::Vertical::Top),
-        ]
-        .spacing(8);
+                .height(Length::Fill)
+                .style(|_theme: &Theme| container::Style {
+                    background: Some(Background::Color(Color {
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
+                        a: 0.6,
+                    })),
+                    ..Default::default()
+                });
 
-        container(layout)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into()
+            let editor_panel = container(self.editor.view().map(Msg::Editor))
+                .style(|_theme: &Theme| container::Style {
+                    background: Some(Background::Color(Color {
+                        r: 0.15,
+                        g: 0.15,
+                        b: 0.15,
+                        a: 1.0,
+                    })),
+                    border: Border {
+                        color: Color {
+                            r: 0.3,
+                            g: 0.3,
+                            b: 0.3,
+                            a: 1.0,
+                        },
+                        width: 1.0,
+                        radius: 8.0.into(),
+                    },
+                    ..Default::default()
+                })
+                .padding(8);
+
+            let overlay = container(editor_panel)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .align_x(alignment::Horizontal::Center)
+                .align_y(alignment::Vertical::Center);
+
+            stack![main_view, backdrop, overlay].into()
+        } else {
+            main_view.into()
+        }
     }
 }
 
 // ---------------------------------------------------------------------------
-// Read-only preview grid (canvas program, no interaction)
+// Read-only preview grid
 // ---------------------------------------------------------------------------
 
-const PREVIEW_CELL: f32 = 24.0;
+const PREVIEW_CELL: f32 = 28.0;
 const PREVIEW_SIDE: f32 = PREVIEW_CELL * 16.0;
 
 struct PreviewProgram<'a> {
@@ -157,7 +188,7 @@ impl<'a> canvas::Program<Msg> for PreviewProgram<'a> {
                 content: format!("{b:02X}"),
                 position: Point::new(x + cw / 2.0, y + ch / 2.0),
                 color: tc,
-                size: 9.0.into(),
+                size: 10.0.into(),
                 font: iced::Font::MONOSPACE,
                 align_x: w_text::Alignment::Center,
                 align_y: alignment::Vertical::Center,

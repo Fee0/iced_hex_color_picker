@@ -1,17 +1,16 @@
 use crate::grid::{GridMessage, GridProgram, GRID_SIDE};
+use crate::picker::{ColorPickerState, PickerMessage};
 use hex_color::presets::{ascii_classes, nibble_groups, AsciiClassColors, NibbleGroupColors};
 use hex_color::{ColorMap, Rgb};
 use iced::widget::canvas::Canvas;
 use iced::widget::{button, container, text};
-use iced::{Alignment, Color, Element, Length};
-use iced_aw::ColorPicker;
+use iced::{Color, Element, Length};
 
 #[derive(Debug, Clone)]
 pub enum Message {
     Grid(GridMessage),
     OpenPicker,
-    PickerCancel,
-    PickerSubmit(Color),
+    Picker(PickerMessage),
     LoadAsciiClasses,
     LoadNibbleGroups,
     FillAll,
@@ -30,7 +29,7 @@ pub struct ColorMapEditor {
     baseline: [Rgb; 256],
     selection: Option<(u8, u8)>,
     picker_open: bool,
-    picked_color: Color,
+    picker_state: ColorPickerState,
 }
 
 fn rgb_to_iced(rgb: Rgb) -> Color {
@@ -53,7 +52,7 @@ impl ColorMapEditor {
             baseline: table,
             selection: None,
             picker_open: false,
-            picked_color: rgb_to_iced(table[0]),
+            picker_state: ColorPickerState::from_color(rgb_to_iced(table[0])),
         }
     }
 
@@ -61,7 +60,8 @@ impl ColorMapEditor {
         match message {
             Message::Grid(GridMessage::SelectionChanged { start, end }) => {
                 self.selection = Some((start, end));
-                self.picked_color = rgb_to_iced(self.draft[start as usize]);
+                let c = rgb_to_iced(self.draft[start as usize]);
+                self.picker_state = ColorPickerState::from_color(c);
             }
             Message::Grid(GridMessage::DragEnded) => {
                 self.picker_open = true;
@@ -69,17 +69,23 @@ impl ColorMapEditor {
             Message::OpenPicker => {
                 self.picker_open = true;
             }
-            Message::PickerCancel => {
-                self.picker_open = false;
-            }
-            Message::PickerSubmit(color) => {
-                self.picker_open = false;
-                self.picked_color = color;
-                if let Some((start, end)) = self.selection {
-                    let rgb = iced_to_rgb(color);
-                    for i in start..=end {
-                        self.draft[i as usize] = rgb;
+            Message::Picker(ref inner) => {
+                self.picker_state.update(inner);
+                match inner {
+                    PickerMessage::Ok => {
+                        self.picker_open = false;
+                        let color = self.picker_state.to_color();
+                        if let Some((start, end)) = self.selection {
+                            let rgb = iced_to_rgb(color);
+                            for i in start..=end {
+                                self.draft[i as usize] = rgb;
+                            }
+                        }
                     }
+                    PickerMessage::Cancel => {
+                        self.picker_open = false;
+                    }
+                    _ => {}
                 }
             }
             Message::LoadAsciiClasses => {
@@ -122,7 +128,7 @@ impl ColorMapEditor {
                 self.draft = *map.as_table();
             }
             Message::FillAll => {
-                let rgb = iced_to_rgb(self.picked_color);
+                let rgb = iced_to_rgb(self.picker_state.to_color());
                 self.draft = [rgb; 256];
             }
             Message::Accept => {
@@ -159,42 +165,32 @@ impl ColorMapEditor {
             None => "Click a cell to select".into(),
         };
 
-        let pick_btn = if self.selection.is_some() {
-            button(text("Pick Color")).on_press(Message::OpenPicker)
+        let mut col = iced::widget::Column::new()
+            .push(toolbar)
+            .push(grid)
+            .push(text(sel_label).size(14));
+
+        if self.picker_open {
+            col = col.push(self.picker_state.view().map(Message::Picker));
         } else {
-            button(text("Pick Color"))
-        };
-
-        let picker = ColorPicker::new(
-            self.picker_open,
-            self.picked_color,
-            pick_btn,
-            Message::PickerCancel,
-            Message::PickerSubmit,
-        );
-
-        let info_row = iced::widget::Row::new()
-            .push(text(sel_label))
-            .push(picker)
-            .spacing(16)
-            .align_y(Alignment::Center);
+            let pick_btn = if self.selection.is_some() {
+                button(text("Pick Color")).on_press(Message::OpenPicker)
+            } else {
+                button(text("Pick Color"))
+            };
+            col = col.push(pick_btn);
+        }
 
         let actions = iced::widget::Row::new()
             .push(button(text("Accept")).on_press(Message::Accept))
             .push(button(text("Cancel")).on_press(Message::Cancel))
             .spacing(8);
 
-        container(
-            iced::widget::Column::new()
-                .push(toolbar)
-                .push(grid)
-                .push(info_row)
-                .push(actions)
-                .spacing(12)
-                .padding(16),
-        )
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
+        col = col.push(actions);
+
+        container(col.spacing(12).padding(16))
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
     }
 }
