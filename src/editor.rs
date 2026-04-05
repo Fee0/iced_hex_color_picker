@@ -1,18 +1,33 @@
 use crate::grid::{GridMessage, GridProgram, GRID_SIDE};
-use crate::picker::{ColorPickerState, PickerMessage};
+use crate::picker::{ColorPickerState, PickerMessage, PICKER_PANEL_WIDTH};
 use hex_color::presets::{ascii_classes, nibble_groups, AsciiClassColors, NibbleGroupColors};
 use hex_color::{ColorMap, Rgb};
 use iced::widget::canvas::Canvas;
-use iced::widget::{button, container, text, Row};
-use iced::{Color, Element, Length};
+use iced::widget::{button, container, pick_list, text, Column, Row, Space};
+use iced::{Border, Color, Element, Length, Theme};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PresetKind {
+    AsciiClasses,
+    NibbleGroups,
+}
+
+impl std::fmt::Display for PresetKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            PresetKind::AsciiClasses => "ASCII classes",
+            PresetKind::NibbleGroups => "Nibble groups",
+        })
+    }
+}
+
+const PRESET_OPTIONS: [PresetKind; 2] = [PresetKind::AsciiClasses, PresetKind::NibbleGroups];
 
 #[derive(Debug, Clone)]
 pub enum Message {
     Grid(GridMessage),
     Picker(PickerMessage),
-    LoadAsciiClasses,
-    LoadNibbleGroups,
-    FillAll,
+    PresetSelected(PresetKind),
     Accept,
     Cancel,
 }
@@ -28,6 +43,7 @@ pub struct ColorMapEditor {
     baseline: [Rgb; 256],
     selection: Option<(u8, u8)>,
     picker_state: ColorPickerState,
+    active_preset: Option<PresetKind>,
 }
 
 fn rgb_to_iced(rgb: Rgb) -> Color {
@@ -59,6 +75,7 @@ impl ColorMapEditor {
             baseline: table,
             selection: None,
             picker_state: ColorPickerState::from_color(rgb_to_iced(table[0])),
+            active_preset: None,
         }
     }
 
@@ -72,54 +89,57 @@ impl ColorMapEditor {
             Message::Grid(GridMessage::DragEnded) => {}
             Message::Picker(ref inner) => {
                 self.picker_state.update(inner);
+                self.active_preset = None;
                 apply_picker_to_selection(&mut self.draft, self.selection, &self.picker_state);
             }
-            Message::LoadAsciiClasses => {
+            Message::PresetSelected(kind) => {
+                self.active_preset = Some(kind);
                 self.selection = None;
-                let map = ascii_classes(AsciiClassColors {
-                    null: Rgb::from_hex(0x404040),
-                    printable: Rgb::from_hex(0x00CC00),
-                    whitespace: Rgb::from_hex(0xCCCC00),
-                    control: Rgb::from_hex(0xCC0000),
-                    non_ascii: Rgb::from_hex(0x0066CC),
-                });
-                self.draft = *map.as_table();
-            }
-            Message::LoadNibbleGroups => {
-                self.selection = None;
-                let map = nibble_groups(NibbleGroupColors {
-                    zero: Rgb::from_hex(0x222222),
-                    leading_nibbles: [
-                        Rgb::from_hex(0x1A0A2E),
-                        Rgb::from_hex(0x2D1B69),
-                        Rgb::from_hex(0x16213E),
-                        Rgb::from_hex(0x0F3460),
-                        Rgb::from_hex(0x1A4045),
-                        Rgb::from_hex(0x1B5E20),
-                        Rgb::from_hex(0x33691E),
-                        Rgb::from_hex(0x827717),
-                        Rgb::from_hex(0xF57F17),
-                        Rgb::from_hex(0xFF6F00),
-                        Rgb::from_hex(0xE65100),
-                        Rgb::from_hex(0xBF360C),
-                        Rgb::from_hex(0xB71C1C),
-                        Rgb::from_hex(0x880E4F),
-                        Rgb::from_hex(0x4A148C),
-                        Rgb::from_hex(0x311B92),
-                    ],
-                    ff: Rgb::from_hex(0xFFFFFF),
-                });
-                self.draft = *map.as_table();
-            }
-            Message::FillAll => {
-                let rgb = iced_to_rgb(self.picker_state.to_color());
-                self.draft = [rgb; 256];
+                match kind {
+                    PresetKind::AsciiClasses => {
+                        let map = ascii_classes(AsciiClassColors {
+                            null: Rgb::from_hex(0x404040),
+                            printable: Rgb::from_hex(0x00CC00),
+                            whitespace: Rgb::from_hex(0xCCCC00),
+                            control: Rgb::from_hex(0xCC0000),
+                            non_ascii: Rgb::from_hex(0x0066CC),
+                        });
+                        self.draft = *map.as_table();
+                    }
+                    PresetKind::NibbleGroups => {
+                        let map = nibble_groups(NibbleGroupColors {
+                            zero: Rgb::from_hex(0x222222),
+                            leading_nibbles: [
+                                Rgb::from_hex(0x1A0A2E),
+                                Rgb::from_hex(0x2D1B69),
+                                Rgb::from_hex(0x16213E),
+                                Rgb::from_hex(0x0F3460),
+                                Rgb::from_hex(0x1A4045),
+                                Rgb::from_hex(0x1B5E20),
+                                Rgb::from_hex(0x33691E),
+                                Rgb::from_hex(0x827717),
+                                Rgb::from_hex(0xF57F17),
+                                Rgb::from_hex(0xFF6F00),
+                                Rgb::from_hex(0xE65100),
+                                Rgb::from_hex(0xBF360C),
+                                Rgb::from_hex(0xB71C1C),
+                                Rgb::from_hex(0x880E4F),
+                                Rgb::from_hex(0x4A148C),
+                                Rgb::from_hex(0x311B92),
+                            ],
+                            ff: Rgb::from_hex(0xFFFFFF),
+                        });
+                        self.draft = *map.as_table();
+                    }
+                }
+                self.picker_state = ColorPickerState::from_color(rgb_to_iced(self.draft[0]));
             }
             Message::Accept => {
                 return Some(Event::Accepted(ColorMap::new(self.draft)));
             }
             Message::Cancel => {
                 self.draft = self.baseline;
+                self.active_preset = None;
                 return Some(Event::Cancelled);
             }
         }
@@ -127,11 +147,14 @@ impl ColorMapEditor {
     }
 
     pub fn view(&self) -> Element<Message> {
-        let toolbar = iced::widget::Row::new()
-            .push(button(text("ASCII Classes")).on_press(Message::LoadAsciiClasses))
-            .push(button(text("Nibble Groups")).on_press(Message::LoadNibbleGroups))
-            .push(button(text("Fill All")).on_press(Message::FillAll))
-            .spacing(8);
+        let preset_dd: Element<Message> = pick_list(
+            PRESET_OPTIONS,
+            self.active_preset,
+            Message::PresetSelected,
+        )
+        .placeholder("Preset…")
+        .width(Length::Fill)
+        .into();
 
         let program = GridProgram {
             colors: &self.draft,
@@ -143,35 +166,49 @@ impl ColorMapEditor {
             .into();
         let grid = grid.map(Message::Grid);
 
-        let sel_label = match self.selection {
-            Some((s, e)) if s == e => format!("Selected: 0x{s:02X}"),
-            Some((s, e)) => format!("Selected: 0x{s:02X}..=0x{e:02X}"),
-            None => "Click a cell to select".into(),
-        };
+        let grid_bordered = container(grid).style(|_theme: &Theme| container::Style {
+            border: Border {
+                color: Color {
+                    r: 0.55,
+                    g: 0.55,
+                    b: 0.58,
+                    a: 0.85,
+                },
+                width: 1.0,
+                radius: 4.0.into(),
+            },
+            ..Default::default()
+        });
 
-        let left = iced::widget::Column::new()
-            .push(toolbar)
-            .push(grid)
-            .push(text(sel_label).size(14))
-            .push(
-                iced::widget::Row::new()
-                    .push(button(text("Accept")).on_press(Message::Accept))
-                    .push(button(text("Cancel")).on_press(Message::Cancel))
-                    .spacing(8),
-            )
-            .spacing(12);
+        let left = container(grid_bordered).width(Length::Shrink);
+
+        let actions = Row::new()
+            .push(Space::new().width(Length::Fill))
+            .push(button(text("Cancel")).on_press(Message::Cancel))
+            .push(button(text("Accept")).on_press(Message::Accept))
+            .spacing(8)
+            .width(Length::Fill);
 
         let right = container(
-            self.picker_state
-                .view()
-                .map(Message::Picker),
-        );
+            Column::new()
+                .push(preset_dd)
+                .push(
+                    self.picker_state
+                        .view()
+                        .map(Message::Picker),
+                )
+                .push(Space::new().height(Length::Fill))
+                .push(actions)
+                .spacing(12)
+                .width(Length::Fixed(PICKER_PANEL_WIDTH)),
+        )
+        .width(Length::Fixed(PICKER_PANEL_WIDTH))
+        .height(Length::Fill);
 
         let body = Row::new()
             .push(left)
             .push(right)
-            .spacing(16)
-            .align_y(iced::Alignment::Start);
+            .spacing(16);
 
         container(body.padding(16))
             .width(Length::Shrink)

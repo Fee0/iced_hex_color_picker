@@ -1,6 +1,7 @@
 use iced::mouse;
 use iced::widget::canvas::{self, Canvas};
-use iced::widget::{container, row, slider, text, Column, Row};
+use iced::widget::{container, slider, text, Column, Row};
+use iced::alignment;
 use iced::{Background, Border, Color, Element, Length, Point, Rectangle, Renderer, Size, Theme};
 
 // ---------------------------------------------------------------------------
@@ -135,8 +136,8 @@ impl ColorPickerState {
         let hex_label = format!("#{r:02X}{g:02X}{b:02X}");
 
         let preview = container(text("").size(1))
-            .width(Length::Fixed(48.0))
-            .height(Length::Fixed(48.0))
+            .width(Length::Fill)
+            .height(Length::Fixed(52.0))
             .style(move |_theme: &Theme| container::Style {
                 background: Some(Background::Color(preview_color)),
                 border: Border {
@@ -173,7 +174,7 @@ impl ColorPickerState {
                         .width(Length::Fixed(16.0)),
                 )
                 .push(
-                    slider(0..=255u8, value, on_change).width(Length::Fixed(140.0)),
+                    slider(0..=255u8, value, on_change).width(Length::Fill),
                 )
                 .push(
                     text(format!("{value:3}"))
@@ -183,6 +184,7 @@ impl ColorPickerState {
                 )
                 .spacing(8)
                 .align_y(iced::Alignment::Center)
+                .width(Length::Fill)
                 .into()
         }
 
@@ -199,23 +201,31 @@ impl ColorPickerState {
             .align_y(iced::Alignment::Center);
 
         Column::new()
+            .push(preview)
             .push(
-                row![preview, text(hex_label).size(14).font(iced::Font::MONOSPACE)]
-                    .spacing(12)
-                    .align_y(iced::Alignment::Center),
+                text(hex_label)
+                    .size(14)
+                    .font(iced::Font::MONOSPACE)
+                    .width(Length::Fill)
+                    .align_x(alignment::Horizontal::Center),
             )
             .push(disc_bar)
             .push(sliders)
             .spacing(10)
             .padding(12)
+            .width(Length::Fill)
             .into()
     }
 }
 
 const DISC_DIAMETER: f32 = 200.0;
+
 const VALUE_BAR_WIDTH: f32 = 28.0;
 const DISC_ANGULAR_STEPS: usize = 72;
 const DISC_RADIAL_STEPS: usize = 36;
+
+pub const PICKER_PANEL_WIDTH: f32 = DISC_DIAMETER + VALUE_BAR_WIDTH + 40.0;
+
 
 // ---------------------------------------------------------------------------
 // Saturation disc: white center, hue by angle, saturation by radius (V=1 preview)
