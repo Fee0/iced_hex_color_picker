@@ -1,6 +1,6 @@
 use iced::mouse;
 use iced::widget::canvas::{self, Canvas};
-use iced::widget::{button, container, row, slider, text, Column, Row};
+use iced::widget::{container, row, slider, text, Column, Row};
 use iced::{Background, Border, Color, Element, Length, Point, Rectangle, Renderer, Size, Theme};
 
 // ---------------------------------------------------------------------------
@@ -70,8 +70,6 @@ pub enum PickerMessage {
     RedChanged(u8),
     GreenChanged(u8),
     BlueChanged(u8),
-    Ok,
-    Cancel,
 }
 
 pub struct ColorPickerState {
@@ -128,7 +126,6 @@ impl ColorPickerState {
                 self.s = s;
                 self.v = v;
             }
-            PickerMessage::Ok | PickerMessage::Cancel => {}
         }
     }
 
@@ -195,17 +192,7 @@ impl ColorPickerState {
             .push(channel("B", b, PickerMessage::BlueChanged))
             .spacing(6);
 
-        let buttons = row![
-            button(text("OK").center().width(Length::Fill))
-                .width(Length::Fixed(80.0))
-                .on_press(PickerMessage::Ok),
-            button(text("Cancel").center().width(Length::Fill))
-                .width(Length::Fixed(80.0))
-                .on_press(PickerMessage::Cancel),
-        ]
-        .spacing(8);
-
-        let pickers_row = Row::new()
+        let disc_bar = Row::new()
             .push(disc)
             .push(vbar)
             .spacing(10)
@@ -217,14 +204,8 @@ impl ColorPickerState {
                     .spacing(12)
                     .align_y(iced::Alignment::Center),
             )
-            .push(
-                Row::new()
-                    .push(pickers_row)
-                    .push(sliders)
-                    .spacing(16)
-                    .align_y(iced::Alignment::Center),
-            )
-            .push(buttons)
+            .push(disc_bar)
+            .push(sliders)
             .spacing(10)
             .padding(12)
             .into()

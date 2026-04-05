@@ -98,6 +98,8 @@ impl App {
                 });
 
             let editor_panel = container(self.editor.view().map(AppMessage::Editor))
+                .width(Length::Shrink)
+                .height(Length::Shrink)
                 .style(|_theme: &Theme| container::Style {
                     background: Some(Background::Color(Color {
                         r: 0.15,

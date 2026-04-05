@@ -10,7 +10,7 @@ use iced_color_map::editor::{self, ColorMapEditor, Event};
 
 fn main() -> iced::Result {
     iced::application(App::boot, App::update, App::view)
-        .title("Color Map Editor — Demo")
+        .title("Color Map Editor â€” Demo")
         .theme(Theme::Dark)
         .centered()
         .run()
@@ -105,6 +105,8 @@ impl App {
                 });
 
             let editor_panel = container(self.editor.view().map(Msg::Editor))
+                .width(Length::Shrink)
+                .height(Length::Shrink)
                 .style(|_theme: &Theme| container::Style {
                     background: Some(Background::Color(Color {
                         r: 0.15,
