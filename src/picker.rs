@@ -1,8 +1,14 @@
 use iced::mouse;
 use iced::widget::canvas::{self, Canvas};
-use iced::widget::{button, container, slider, text, Column, Row};
+use iced::widget::svg::Handle;
+use iced::widget::{button, container, slider, svg, text, Column, Row};
 use iced::alignment;
-use iced::{Background, Border, Color, Element, Length, Point, Rectangle, Renderer, Size, Theme};
+use iced::{
+    Shadow, Background, Border, Color, ContentFit, Element, Length, Point, Rectangle, Renderer, Size, Theme,
+};
+
+/// Classic "two rectangles" copy icon (24x24). Stroke is recolored via svg::Style::color.
+const COPY_ICON_SVG: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='black' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>"#;
 
 // ---------------------------------------------------------------------------
 // HSV (h,s,v in [0,1]) <-> RGB8
@@ -156,11 +162,30 @@ impl ColorPickerState {
                     .width(Length::Fill)
                     .align_y(alignment::Vertical::Center),
             )
-            .push(
-                button(text("Copy").size(12))
+            .push({
+                let copy_icon: Element<PickerMessage> = svg(Handle::from_memory(COPY_ICON_SVG))
+                    .width(Length::Fixed(20.0))
+                    .height(Length::Fixed(20.0))
+                    .content_fit(ContentFit::Contain)
+                    .style(move |_theme: &Theme, _status: svg::Status| svg::Style {
+                        color: Some(label_color),
+                    })
+                    .into();
+                button(copy_icon)
                     .on_press(PickerMessage::CopyHex)
-                    .padding([4, 8]),
-            )
+                    .padding(4)
+                    .style(move |_theme: &Theme, _status: button::Status| button::Style {
+                        background: None,
+                        text_color: label_color,
+                        border: Border {
+                            width: 0.0,
+                            radius: 4.0.into(),
+                            ..Border::default()
+                        },
+                        shadow: Shadow::default(),
+                        snap: false,
+                    })
+            })
             .spacing(8)
             .align_y(iced::Alignment::Center)
             .width(Length::Fill)
