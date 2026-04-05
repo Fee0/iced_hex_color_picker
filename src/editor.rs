@@ -75,7 +75,7 @@ impl ColorMapEditor {
         Self {
             draft: table,
             baseline: table,
-            selection: None,
+            selection: Some((0, 0)),
             picker_state: ColorPickerState::from_color(rgb_to_iced(table[0])),
             active_preset: None,
         }
