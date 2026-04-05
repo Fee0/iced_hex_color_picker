@@ -3,6 +3,7 @@ use iced::mouse;
 use iced::widget::canvas;
 use iced::widget::text as w_text;
 use iced::{alignment, Color, Point, Rectangle, Renderer, Size, Theme};
+use std::collections::{HashMap, HashSet};
 
 pub const CELL_SIZE: f32 = 36.0;
 pub const GRID_SIDE: f32 = CELL_SIZE * 16.0;
@@ -35,6 +36,119 @@ fn hit_test(pos: Point, size: Size) -> Option<u8> {
         None
     }
 }
+
+/// Corner of the logical 17×17 grid (cell (c,r) uses corners (c,r)…(c+1,r+1)).
+type GridCorner = (u8, u8);
+
+fn norm_edge(a: GridCorner, b: GridCorner) -> (GridCorner, GridCorner) {
+    if a.0 < b.0 || (a.0 == b.0 && a.1 < b.1) {
+        (a, b)
+    } else {
+        (b, a)
+    }
+}
+
+fn xor_cell_edges(boundary: &mut HashSet<(GridCorner, GridCorner)>, col: u8, row: u8) {
+    let c = col;
+    let r = row;
+    let edges = [
+        norm_edge((c, r), (c + 1, r)),
+        norm_edge((c + 1, r), (c + 1, r + 1)),
+        norm_edge((c + 1, r + 1), (c, r + 1)),
+        norm_edge((c, r + 1), (c, r)),
+    ];
+    for e in edges {
+        if !boundary.remove(&e) {
+            boundary.insert(e);
+        }
+    }
+}
+
+fn selection_boundary_edges(lo: u8, hi: u8) -> HashSet<(GridCorner, GridCorner)> {
+    let mut boundary = HashSet::new();
+    for b in lo..=hi {
+        xor_cell_edges(&mut boundary, b % 16, b / 16);
+    }
+    boundary
+}
+
+fn corner_to_point(c: GridCorner, cw: f32, ch: f32) -> Point {
+    Point::new(c.0 as f32 * cw, c.1 as f32 * ch)
+}
+
+/// Traces closed loops from the XOR boundary edge set; consumes `edge_rem`.
+fn boundary_loops_as_paths(edge_rem: &mut HashSet<(GridCorner, GridCorner)>, cw: f32, ch: f32) -> Vec<canvas::Path> {
+    let mut adj: HashMap<GridCorner, Vec<GridCorner>> = HashMap::new();
+    for &(a, b) in edge_rem.iter() {
+        adj.entry(a).or_default().push(b);
+        adj.entry(b).or_default().push(a);
+    }
+
+    let mut paths = Vec::new();
+
+    while let Some(&(c0, c1)) = edge_rem.iter().next() {
+        let mut poly = vec![c0];
+        let mut prev = c0;
+        let mut cur = c1;
+        // Only follow edges still in `edge_rem`; static `adj` includes removed edges, which
+        // otherwise allowed picking a "ghost" neighbor and spinning forever without reaching c0.
+        let max_steps = edge_rem.len() + 64;
+        let mut steps = 0usize;
+
+        loop {
+            if steps >= max_steps {
+                edge_rem.clear();
+                return paths;
+            }
+            steps += 1;
+
+            let e = norm_edge(prev, cur);
+            if !edge_rem.remove(&e) {
+                edge_rem.clear();
+                return paths;
+            }
+            poly.push(cur);
+            if cur == c0 {
+                break;
+            }
+            let neighbors = adj.get(&cur).cloned().unwrap_or_default();
+            let Some(next) = neighbors.into_iter().find(|&n| {
+                n != prev && edge_rem.contains(&norm_edge(cur, n))
+            }) else {
+                edge_rem.clear();
+                return paths;
+            };
+            prev = cur;
+            cur = next;
+        }
+
+        let path = canvas::Path::new(|b| {
+            let p0 = corner_to_point(poly[0], cw, ch);
+            b.move_to(p0);
+            for c in poly.iter().skip(1) {
+                b.line_to(corner_to_point(*c, cw, ch));
+            }
+            b.close();
+        });
+        paths.push(path);
+    }
+
+    paths
+}
+
+const SELECTION_TINT: Color = Color {
+    r: 0.3,
+    g: 0.55,
+    b: 1.0,
+    a: 0.28,
+};
+
+const SELECTION_STROKE: Color = Color {
+    r: 0.4,
+    g: 0.65,
+    b: 1.0,
+    a: 0.9,
+};
 
 impl<'a> canvas::Program<GridMessage> for GridProgram<'a> {
     type State = GridInteraction;
@@ -113,36 +227,32 @@ impl<'a> canvas::Program<GridMessage> for GridProgram<'a> {
                 Size::new(cw, ch),
                 Color::from_rgb8(rgb.r, rgb.g, rgb.b),
             );
+        }
 
-            if let Some((lo, hi)) = self.selection {
-                if b >= lo && b <= hi {
-                    frame.fill_rectangle(
-                        Point::new(x, y),
-                        Size::new(cw, ch),
-                        Color {
-                            r: 0.3,
-                            g: 0.55,
-                            b: 1.0,
-                            a: 0.25,
-                        },
-                    );
-                    frame.stroke(
-                        &canvas::Path::rectangle(
-                            Point::new(x + 1.0, y + 1.0),
-                            Size::new(cw - 2.0, ch - 2.0),
-                        ),
-                        canvas::Stroke::default()
-                            .with_color(Color {
-                                r: 0.4,
-                                g: 0.65,
-                                b: 1.0,
-                                a: 0.9,
-                            })
-                            .with_width(1.5),
-                    );
-                }
+        if let Some((lo, hi)) = self.selection {
+            for b in lo..=hi {
+                let i = b as u16;
+                let x = (i % 16) as f32 * cw;
+                let y = (i / 16) as f32 * ch;
+                frame.fill_rectangle(
+                    Point::new(x, y),
+                    Size::new(cw, ch),
+                    SELECTION_TINT,
+                );
             }
 
+            let mut edges = selection_boundary_edges(lo, hi);
+            let stroke = canvas::Stroke::default().with_color(SELECTION_STROKE).with_width(1.5);
+            for path in boundary_loops_as_paths(&mut edges, cw, ch) {
+                frame.stroke(&path, stroke);
+            }
+        }
+
+        for i in 0u16..256 {
+            let b = i as u8;
+            let x = (i % 16) as f32 * cw;
+            let y = (i / 16) as f32 * ch;
+            let rgb = self.colors[b as usize];
             let lum = 0.299 * rgb.r as f32 + 0.587 * rgb.g as f32 + 0.114 * rgb.b as f32;
             let tc = if lum > 128.0 {
                 Color::BLACK
