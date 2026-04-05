@@ -1,8 +1,8 @@
 use iced::mouse;
 use iced::widget::canvas::{self, Canvas};
 use iced::widget::svg::Handle;
+use iced::widget::text_input;
 use iced::widget::{button, container, slider, svg, text, Column, Row};
-use iced::alignment;
 use iced::{
     Shadow, Background, Border, Color, ContentFit, Element, Length, Point, Rectangle, Renderer, Size, Theme,
 };
@@ -75,6 +75,42 @@ fn contrast_text_color(r: u8, g: u8, b: u8) -> Color {
     }
 }
 
+fn parse_rgb_hex(s: &str) -> Option<(u8, u8, u8)> {
+    let s = s.trim();
+    let digits = s.strip_prefix('#').unwrap_or(s);
+    if digits.len() != 6 {
+        return None;
+    }
+    let r = u8::from_str_radix(digits.get(0..2)?, 16).ok()?;
+    let g = u8::from_str_radix(digits.get(2..4)?, 16).ok()?;
+    let b = u8::from_str_radix(digits.get(4..6)?, 16).ok()?;
+    Some((r, g, b))
+}
+
+/// At most 7 characters: optional `#` plus up to 6 hex digits. Strips any other characters.
+fn sanitize_hex_field_input(s: &str) -> String {
+    const MAX_LEN_WITH_HASH: usize = 7;
+    const MAX_LEN_PLAIN_HEX: usize = 6;
+    let mut out = String::new();
+    for c in s.chars() {
+        if out.is_empty() && c == '#' {
+            out.push('#');
+            continue;
+        }
+        if c.is_ascii_hexdigit() {
+            let cap = if out.starts_with('#') {
+                MAX_LEN_WITH_HASH
+            } else {
+                MAX_LEN_PLAIN_HEX
+            };
+            if out.len() < cap {
+                out.push(c);
+            }
+        }
+    }
+    out
+}
+
 // ---------------------------------------------------------------------------
 // Messages & state
 // ---------------------------------------------------------------------------
@@ -86,6 +122,7 @@ pub enum PickerMessage {
     RedChanged(u8),
     GreenChanged(u8),
     BlueChanged(u8),
+    HexEdited(String),
     CopyHex,
 }
 
@@ -93,6 +130,7 @@ pub struct ColorPickerState {
     pub h: f32,
     pub s: f32,
     pub v: f32,
+    hex_field: String,
 }
 
 impl ColorPickerState {
@@ -101,7 +139,12 @@ impl ColorPickerState {
         let g = (c.g * 255.0 + 0.5) as u8;
         let b = (c.b * 255.0 + 0.5) as u8;
         let (h, s, v) = rgb8_to_hsv(r, g, b);
-        Self { h, s, v }
+        Self {
+            h,
+            s,
+            v,
+            hex_field: format!("#{r:02X}{g:02X}{b:02X}"),
+        }
     }
 
     pub fn to_color(&self) -> Color {
@@ -113,14 +156,21 @@ impl ColorPickerState {
         hsv_to_rgb8(self.h, self.s, self.v)
     }
 
+    fn sync_hex_field_from_rgb(&mut self) {
+        let (r, g, b) = self.rgb8();
+        self.hex_field = format!("#{r:02X}{g:02X}{b:02X}");
+    }
+
     pub fn update(&mut self, msg: &PickerMessage) {
         match msg {
             PickerMessage::HueSatFromDisc { h, s } => {
                 self.h = *h;
                 self.s = (*s).clamp(0.0, 1.0);
+                self.sync_hex_field_from_rgb();
             }
             PickerMessage::ValueFromBar(v) => {
                 self.v = (*v).clamp(0.0, 1.0);
+                self.sync_hex_field_from_rgb();
             }
             PickerMessage::RedChanged(r) => {
                 let (_, g, b) = self.rgb8();
@@ -128,6 +178,7 @@ impl ColorPickerState {
                 self.h = h;
                 self.s = s;
                 self.v = v;
+                self.sync_hex_field_from_rgb();
             }
             PickerMessage::GreenChanged(g) => {
                 let (r, _, b) = self.rgb8();
@@ -135,6 +186,7 @@ impl ColorPickerState {
                 self.h = h;
                 self.s = s;
                 self.v = v;
+                self.sync_hex_field_from_rgb();
             }
             PickerMessage::BlueChanged(b) => {
                 let (r, g, _) = self.rgb8();
@@ -142,6 +194,17 @@ impl ColorPickerState {
                 self.h = h;
                 self.s = s;
                 self.v = v;
+                self.sync_hex_field_from_rgb();
+            }
+            PickerMessage::HexEdited(s) => {
+                self.hex_field = sanitize_hex_field_input(s);
+                if let Some((r, g, b)) = parse_rgb_hex(&self.hex_field) {
+                    let (h, se, v) = rgb8_to_hsv(r, g, b);
+                    self.h = h;
+                    self.s = se;
+                    self.v = v;
+                    self.hex_field = format!("#{r:02X}{g:02X}{b:02X}");
+                }
             }
             PickerMessage::CopyHex => {}
         }
@@ -150,17 +213,41 @@ impl ColorPickerState {
     pub fn view(&self) -> Element<PickerMessage> {
         let (r, g, b) = self.rgb8();
         let preview_color = self.to_color();
-        let hex_label = format!("#{r:02X}{g:02X}{b:02X}");
         let label_color = contrast_text_color(r, g, b);
 
         let preview_inner = Row::new()
             .push(
-                text(hex_label)
-                    .size(14)
+                text_input("", self.hex_field.as_str())
+                    .on_input(PickerMessage::HexEdited)
                     .font(iced::Font::MONOSPACE)
-                    .color(label_color)
+                    .size(14)
+                    .padding([0, 2])
                     .width(Length::Fill)
-                    .align_y(alignment::Vertical::Center),
+                    .style(move |_theme: &Theme, status: text_input::Status| text_input::Style {
+                        background: Background::Color(Color {
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
+                            a: 0.0,
+                        }),
+                        border: Border {
+                            radius: 2.0.into(),
+                            width: match status {
+                                text_input::Status::Focused { .. } => 1.0,
+                                _ => 0.0,
+                            },
+                            color: label_color.scale_alpha(0.45),
+                        },
+                        icon: label_color,
+                        placeholder: label_color.scale_alpha(0.45),
+                        value: label_color,
+                        selection: Color {
+                            r: 0.3,
+                            g: 0.55,
+                            b: 1.0,
+                            a: 0.35,
+                        },
+                    }),
             )
             .push({
                 let copy_icon: Element<PickerMessage> = svg(Handle::from_memory(COPY_ICON_SVG))
