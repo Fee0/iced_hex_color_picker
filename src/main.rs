@@ -4,7 +4,7 @@ use iced::mouse;
 use iced::widget::canvas;
 use iced::widget::text as w_text;
 use iced::widget::{button, column, container, stack, text};
-use iced::{Background, Border, Color, Element, Length, Point, Rectangle, Renderer, Size, Theme};
+use iced::{clipboard, Background, Border, Color, Element, Length, Point, Rectangle, Renderer, Size, Task, Theme};
 use iced_color_map::editor::{self, ColorMapEditor, Event};
 
 fn main() -> iced::Result {
@@ -38,13 +38,16 @@ impl App {
         }
     }
 
-    fn update(&mut self, message: AppMessage) {
+    fn update(&mut self, message: AppMessage) -> Task<AppMessage> {
         match message {
             AppMessage::OpenEditor => {
                 self.editing = true;
+                Task::none()
             }
             AppMessage::Editor(msg) => {
-                if let Some(event) = self.editor.update(msg) {
+                if matches!(&msg, editor::Message::Picker(editor::PickerMessage::CopyHex)) {
+                    clipboard::write::<AppMessage>(self.editor.picker_hex_string())
+                } else if let Some(event) = self.editor.update(msg) {
                     match event {
                         Event::Accepted(map) => {
                             self.accepted_map = *map.as_table();
@@ -54,6 +57,9 @@ impl App {
                             self.editing = false;
                         }
                     }
+                    Task::none()
+                } else {
+                    Task::none()
                 }
             }
         }

@@ -1,5 +1,7 @@
 use crate::grid::{GridMessage, GridProgram, GRID_SIDE};
-use crate::picker::{ColorPickerState, PickerMessage, PICKER_PANEL_WIDTH};
+use crate::picker::{ColorPickerState, PICKER_PANEL_WIDTH};
+
+pub use crate::picker::PickerMessage;
 use hex_color::presets::{ascii_classes, nibble_groups, AsciiClassColors, NibbleGroupColors};
 use hex_color::{ColorMap, Rgb};
 use iced::widget::canvas::Canvas;
@@ -79,6 +81,14 @@ impl ColorMapEditor {
         }
     }
 
+    pub fn picker_hex_string(&self) -> String {
+        let c = self.picker_state.to_color();
+        let r = (c.r * 255.0 + 0.5) as u8;
+        let g = (c.g * 255.0 + 0.5) as u8;
+        let b = (c.b * 255.0 + 0.5) as u8;
+        format!("#{r:02X}{g:02X}{b:02X}")
+    }
+
     pub fn update(&mut self, message: Message) -> Option<Event> {
         match message {
             Message::Grid(GridMessage::SelectionChanged { start, end }) => {
@@ -88,6 +98,9 @@ impl ColorMapEditor {
             }
             Message::Grid(GridMessage::DragEnded) => {}
             Message::Picker(ref inner) => {
+                if matches!(inner, PickerMessage::CopyHex) {
+                    return None;
+                }
                 self.picker_state.update(inner);
                 self.active_preset = None;
                 apply_picker_to_selection(&mut self.draft, self.selection, &self.picker_state);

@@ -1,6 +1,6 @@
 use iced::mouse;
 use iced::widget::canvas::{self, Canvas};
-use iced::widget::{container, slider, text, Column, Row};
+use iced::widget::{button, container, slider, text, Column, Row};
 use iced::alignment;
 use iced::{Background, Border, Color, Element, Length, Point, Rectangle, Renderer, Size, Theme};
 
@@ -60,6 +60,15 @@ fn hsv_to_iced_color(h: f32, s: f32, v: f32) -> Color {
     Color::from_rgb8(r, g, b)
 }
 
+fn contrast_text_color(r: u8, g: u8, b: u8) -> Color {
+    let luma = 0.299 * r as f32 + 0.587 * g as f32 + 0.114 * b as f32;
+    if luma > 140.0 {
+        Color::BLACK
+    } else {
+        Color::WHITE
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Messages & state
 // ---------------------------------------------------------------------------
@@ -71,6 +80,7 @@ pub enum PickerMessage {
     RedChanged(u8),
     GreenChanged(u8),
     BlueChanged(u8),
+    CopyHex,
 }
 
 pub struct ColorPickerState {
@@ -127,6 +137,7 @@ impl ColorPickerState {
                 self.s = s;
                 self.v = v;
             }
+            PickerMessage::CopyHex => {}
         }
     }
 
@@ -134,10 +145,31 @@ impl ColorPickerState {
         let (r, g, b) = self.rgb8();
         let preview_color = self.to_color();
         let hex_label = format!("#{r:02X}{g:02X}{b:02X}");
+        let label_color = contrast_text_color(r, g, b);
 
-        let preview = container(text("").size(1))
+        let preview_inner = Row::new()
+            .push(
+                text(hex_label)
+                    .size(14)
+                    .font(iced::Font::MONOSPACE)
+                    .color(label_color)
+                    .width(Length::Fill)
+                    .align_y(alignment::Vertical::Center),
+            )
+            .push(
+                button(text("Copy").size(12))
+                    .on_press(PickerMessage::CopyHex)
+                    .padding([4, 8]),
+            )
+            .spacing(8)
+            .align_y(iced::Alignment::Center)
+            .width(Length::Fill)
+            .height(Length::Fill);
+
+        let preview = container(preview_inner)
             .width(Length::Fill)
             .height(Length::Fixed(52.0))
+            .padding([0, 10])
             .style(move |_theme: &Theme| container::Style {
                 background: Some(Background::Color(preview_color)),
                 border: Border {
@@ -202,13 +234,6 @@ impl ColorPickerState {
 
         Column::new()
             .push(preview)
-            .push(
-                text(hex_label)
-                    .size(14)
-                    .font(iced::Font::MONOSPACE)
-                    .width(Length::Fill)
-                    .align_x(alignment::Horizontal::Center),
-            )
             .push(disc_bar)
             .push(sliders)
             .spacing(10)
