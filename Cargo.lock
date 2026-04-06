@@ -1233,6 +1233,7 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 [[package]]
 name = "hex_color"
 version = "0.1.0"
+source = "git+https://github.com/Fee0/hex_color.git#775cd00222072d4e02cb75f8171d057ab891a4be"
 
 [[package]]
 name = "hexf-parse"

@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-hex_color = { path = "../hex_color" }
+hex_color = { git = "https://github.com/Fee0/hex_color.git" }
 iced = { version = "0.14", features = ["canvas", "svg"] }
