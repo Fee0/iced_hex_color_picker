@@ -1,8 +1,7 @@
 mod grid;
-mod picker;
 
 use grid::{GridMessage, GridProgram};
-use picker::{ColorPickerState, PICKER_PANEL_WIDTH};
+use iced_color_picker::{ColorPickerState, PICKER_PANEL_WIDTH};
 
 use crate::style::{ColorMapEditorStyle, GridDrawStyle, MapColorTarget};
 use hex_color::presets::{AsciiClassColors, NibbleGroupColors, ascii_classes, nibble_groups};
@@ -13,7 +12,7 @@ use iced::widget::overlay::menu::default as menu_default_style;
 use iced::widget::pick_list::default as pick_list_default_style;
 use iced::widget::{Column, MouseArea, Row, Space, button, container, pick_list, text};
 use iced::{Border, Color, Element, Length, Theme, mouse};
-pub use picker::PickerMessage;
+use iced_color_picker::PickerMessage;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PresetKind {
