@@ -4,13 +4,13 @@ mod picker;
 use grid::{GridMessage, GridProgram};
 use picker::{ColorPickerState, PICKER_PANEL_WIDTH};
 
-pub use picker::PickerMessage;
 use crate::style::{ColorMapEditorStyle, GridDrawStyle, MapColorTarget};
-use hex_color::presets::{ascii_classes, nibble_groups, AsciiClassColors, NibbleGroupColors};
+use hex_color::presets::{AsciiClassColors, NibbleGroupColors, ascii_classes, nibble_groups};
 use hex_color::{ColorMap, Rgb};
 use iced::widget::canvas::Canvas;
-use iced::widget::{button, container, pick_list, text, Column, MouseArea, Row, Space};
-use iced::{mouse, Border, Color, Element, Length, Theme};
+use iced::widget::{Column, MouseArea, Row, Space, button, container, pick_list, text};
+use iced::{Border, Color, Element, Length, Theme, mouse};
+pub use picker::PickerMessage;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PresetKind {
@@ -65,7 +65,11 @@ fn iced_to_rgb(c: Color) -> Rgb {
     )
 }
 
-fn apply_picker_to_selection(draft: &mut [Rgb; 256], selection: Option<(u8, u8)>, picker: &ColorPickerState) {
+fn apply_picker_to_selection(
+    draft: &mut [Rgb; 256],
+    selection: Option<(u8, u8)>,
+    picker: &ColorPickerState,
+) {
     if let Some((start, end)) = selection {
         let rgb = iced_to_rgb(picker.to_color());
         for i in start..=end {
@@ -264,16 +268,15 @@ impl ColorMapEditor {
             .spacing(8)
             .width(Length::Fill);
 
-        let mut right_col = Column::new().spacing(12).width(Length::Fixed(PICKER_PANEL_WIDTH));
+        let mut right_col = Column::new()
+            .spacing(12)
+            .width(Length::Fixed(PICKER_PANEL_WIDTH));
         if self.style.show_presets {
-            let preset_dd: Element<Message> = pick_list(
-                PRESET_OPTIONS,
-                self.active_preset,
-                Message::PresetSelected,
-            )
-            .placeholder("Preset…")
-            .width(Length::Fill)
-            .into();
+            let preset_dd: Element<Message> =
+                pick_list(PRESET_OPTIONS, self.active_preset, Message::PresetSelected)
+                    .placeholder("Preset…")
+                    .width(Length::Fill)
+                    .into();
             right_col = right_col.push(preset_dd);
         }
         right_col = right_col
@@ -285,10 +288,7 @@ impl ColorMapEditor {
             .width(Length::Fixed(PICKER_PANEL_WIDTH))
             .height(Length::Fill);
 
-        let body = Row::new()
-            .push(left)
-            .push(right)
-            .spacing(16);
+        let body = Row::new().push(left).push(right).spacing(16);
 
         // When inner widgets return `Interaction::None` (e.g. the byte grid), a parent
         // `Stack` would otherwise fall through to widgets underneath and adopt their

@@ -3,7 +3,7 @@ use hex_color::Rgb;
 use iced::mouse;
 use iced::widget::canvas;
 use iced::widget::text as w_text;
-use iced::{alignment, Color, Point, Rectangle, Renderer, Size, Theme};
+use iced::{Color, Point, Rectangle, Renderer, Size, Theme, alignment};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone)]
@@ -85,7 +85,11 @@ fn corner_to_point(c: GridCorner, cw: f32, ch: f32) -> Point {
 }
 
 /// Traces closed loops from the XOR boundary edge set; consumes `edge_rem`.
-fn boundary_loops_as_paths(edge_rem: &mut HashSet<(GridCorner, GridCorner)>, cw: f32, ch: f32) -> Vec<canvas::Path> {
+fn boundary_loops_as_paths(
+    edge_rem: &mut HashSet<(GridCorner, GridCorner)>,
+    cw: f32,
+    ch: f32,
+) -> Vec<canvas::Path> {
     let mut adj: HashMap<GridCorner, Vec<GridCorner>> = HashMap::new();
     for &(a, b) in edge_rem.iter() {
         adj.entry(a).or_default().push(b);
@@ -120,9 +124,10 @@ fn boundary_loops_as_paths(edge_rem: &mut HashSet<(GridCorner, GridCorner)>, cw:
                 break;
             }
             let neighbors = adj.get(&cur).cloned().unwrap_or_default();
-            let Some(next) = neighbors.into_iter().find(|&n| {
-                n != prev && edge_rem.contains(&norm_edge(cur, n))
-            }) else {
+            let Some(next) = neighbors
+                .into_iter()
+                .find(|&n| n != prev && edge_rem.contains(&norm_edge(cur, n)))
+            else {
                 edge_rem.clear();
                 return paths;
             };
@@ -228,11 +233,7 @@ impl<'a> canvas::Program<GridMessage> for GridProgram<'a> {
                 let i = b as u16;
                 let x = (i % 16) as f32 * cw;
                 let y = (i / 16) as f32 * ch;
-                frame.fill_rectangle(
-                    Point::new(x, y),
-                    Size::new(cw, ch),
-                    st.selection_overlay,
-                );
+                frame.fill_rectangle(Point::new(x, y), Size::new(cw, ch), st.selection_overlay);
             }
 
             let mut edges = selection_boundary_edges(lo, hi);

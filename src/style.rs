@@ -1,4 +1,4 @@
-﻿//! Visual configuration for [`crate::ColorMapEditor`].
+//! Visual configuration for [`crate::ColorMapEditor`].
 use iced::Color;
 
 /// Default edge length of one grid cell in logical pixels (used by [`GridDrawStyle::default`]).
@@ -91,4 +91,3 @@ impl Default for ColorMapEditorStyle {
         }
     }
 }
-

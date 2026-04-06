@@ -1,14 +1,15 @@
-use hex_color::presets::{ascii_classes, AsciiClassColors};
 use hex_color::Rgb;
+use hex_color::presets::{AsciiClassColors, ascii_classes};
 use iced::alignment;
 use iced::mouse;
 use iced::widget::canvas;
 use iced::widget::text as w_text;
 use iced::widget::{button, column, container, stack, text, toggler};
-use iced::{clipboard, Background, Border, Color, Element, Length, Point, Rectangle, Renderer, Size, Task, Theme};
-use iced_color_map::{
-    ColorMapEditor, Event, MapColorTarget, Message, PickerMessage,
+use iced::{
+    Background, Border, Color, Element, Length, Point, Rectangle, Renderer, Size, Task, Theme,
+    clipboard,
 };
+use iced_color_map::{ColorMapEditor, Event, MapColorTarget, Message, PickerMessage};
 
 fn main() -> iced::Result {
     iced::application(App::boot, App::update, App::view)
@@ -104,7 +105,9 @@ impl App {
                     .on_press(Msg::OpenEditor)
                     .padding(12),
                 map_fill_toggler,
-                text("Current Color Map").size(14).font(iced::Font::MONOSPACE),
+                text("Current Color Map")
+                    .size(14)
+                    .font(iced::Font::MONOSPACE),
                 preview_grid,
             ]
             .spacing(12)

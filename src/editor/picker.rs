@@ -2,9 +2,10 @@ use iced::mouse;
 use iced::widget::canvas::{self, Canvas};
 use iced::widget::svg::Handle;
 use iced::widget::text_input;
-use iced::widget::{button, container, slider, svg, text, Column, Row};
+use iced::widget::{Column, Row, button, container, slider, svg, text};
 use iced::{
-    Shadow, Background, Border, Color, ContentFit, Element, Length, Point, Rectangle, Renderer, Size, Theme,
+    Background, Border, Color, ContentFit, Element, Length, Point, Rectangle, Renderer, Shadow,
+    Size, Theme,
 };
 
 /// Classic "two rectangles" copy icon (24x24). Stroke is recolored via svg::Style::color.
@@ -223,31 +224,33 @@ impl ColorPickerState {
                     .size(14)
                     .padding([0, 2])
                     .width(Length::Fill)
-                    .style(move |_theme: &Theme, status: text_input::Status| text_input::Style {
-                        background: Background::Color(Color {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
-                            a: 0.0,
-                        }),
-                        border: Border {
-                            radius: 2.0.into(),
-                            width: match status {
-                                text_input::Status::Focused { .. } => 1.0,
-                                _ => 0.0,
+                    .style(
+                        move |_theme: &Theme, status: text_input::Status| text_input::Style {
+                            background: Background::Color(Color {
+                                r: 0.0,
+                                g: 0.0,
+                                b: 0.0,
+                                a: 0.0,
+                            }),
+                            border: Border {
+                                radius: 2.0.into(),
+                                width: match status {
+                                    text_input::Status::Focused { .. } => 1.0,
+                                    _ => 0.0,
+                                },
+                                color: label_color.scale_alpha(0.45),
                             },
-                            color: label_color.scale_alpha(0.45),
+                            icon: label_color,
+                            placeholder: label_color.scale_alpha(0.45),
+                            value: label_color,
+                            selection: Color {
+                                r: 0.3,
+                                g: 0.55,
+                                b: 1.0,
+                                a: 0.35,
+                            },
                         },
-                        icon: label_color,
-                        placeholder: label_color.scale_alpha(0.45),
-                        value: label_color,
-                        selection: Color {
-                            r: 0.3,
-                            g: 0.55,
-                            b: 1.0,
-                            a: 0.35,
-                        },
-                    }),
+                    ),
             )
             .push({
                 let copy_icon: Element<PickerMessage> = svg(Handle::from_memory(COPY_ICON_SVG))
@@ -261,17 +264,19 @@ impl ColorPickerState {
                 button(copy_icon)
                     .on_press(PickerMessage::CopyHex)
                     .padding(4)
-                    .style(move |_theme: &Theme, _status: button::Status| button::Style {
-                        background: None,
-                        text_color: label_color,
-                        border: Border {
-                            width: 0.0,
-                            radius: 4.0.into(),
-                            ..Border::default()
+                    .style(
+                        move |_theme: &Theme, _status: button::Status| button::Style {
+                            background: None,
+                            text_color: label_color,
+                            border: Border {
+                                width: 0.0,
+                                radius: 4.0.into(),
+                                ..Border::default()
+                            },
+                            shadow: Shadow::default(),
+                            snap: false,
                         },
-                        shadow: Shadow::default(),
-                        snap: false,
-                    })
+                    )
             })
             .spacing(8)
             .align_y(iced::Alignment::Center)
@@ -309,7 +314,11 @@ impl ColorPickerState {
         .height(Length::Fixed(DISC_DIAMETER))
         .into();
 
-        fn channel(label: &'static str, value: u8, on_change: fn(u8) -> PickerMessage) -> Element<'static, PickerMessage> {
+        fn channel(
+            label: &'static str,
+            value: u8,
+            on_change: fn(u8) -> PickerMessage,
+        ) -> Element<'static, PickerMessage> {
             Row::new()
                 .push(
                     text(label)
@@ -317,9 +326,7 @@ impl ColorPickerState {
                         .font(iced::Font::MONOSPACE)
                         .width(Length::Fixed(16.0)),
                 )
-                .push(
-                    slider(0..=255u8, value, on_change).width(Length::Fill),
-                )
+                .push(slider(0..=255u8, value, on_change).width(Length::Fill))
                 .push(
                     text(format!("{value:3}"))
                         .size(13)
@@ -362,7 +369,6 @@ const DISC_ANGULAR_STEPS: usize = 72;
 const DISC_RADIAL_STEPS: usize = 36;
 
 pub const PICKER_PANEL_WIDTH: f32 = DISC_DIAMETER + VALUE_BAR_WIDTH + 40.0;
-
 
 // ---------------------------------------------------------------------------
 // Saturation disc: white center, hue by angle, saturation by radius (V=1 preview)
@@ -417,7 +423,8 @@ impl canvas::Program<PickerMessage> for SaturationDiscProgram {
                     if let Some((h, s)) = self.pos_to_hs(pos, size) {
                         state.dragging = true;
                         return Some(
-                            canvas::Action::publish(PickerMessage::HueSatFromDisc { h, s }).and_capture(),
+                            canvas::Action::publish(PickerMessage::HueSatFromDisc { h, s })
+                                .and_capture(),
                         );
                     }
                 }
@@ -427,13 +434,16 @@ impl canvas::Program<PickerMessage> for SaturationDiscProgram {
                 if let Some(pos) = cursor.position_in(bounds) {
                     if let Some((h, s)) = self.pos_to_hs(pos, size) {
                         return Some(
-                            canvas::Action::publish(PickerMessage::HueSatFromDisc { h, s }).and_capture(),
+                            canvas::Action::publish(PickerMessage::HueSatFromDisc { h, s })
+                                .and_capture(),
                         );
                     }
                 }
                 Some(canvas::Action::capture())
             }
-            canvas::Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)) if state.dragging => {
+            canvas::Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left))
+                if state.dragging =>
+            {
                 state.dragging = false;
                 Some(canvas::Action::capture())
             }
@@ -499,7 +509,9 @@ impl canvas::Program<PickerMessage> for SaturationDiscProgram {
         };
         frame.stroke(
             &canvas::Path::circle(c, radius),
-            canvas::Stroke::default().with_color(stroke_col).with_width(1.0),
+            canvas::Stroke::default()
+                .with_color(stroke_col)
+                .with_width(1.0),
         );
 
         let sel_a = self.h * tau;
@@ -509,11 +521,15 @@ impl canvas::Program<PickerMessage> for SaturationDiscProgram {
         let sel_pt = Point::new(sx, sy);
         frame.stroke(
             &canvas::Path::circle(sel_pt, 5.0),
-            canvas::Stroke::default().with_color(Color::WHITE).with_width(2.0),
+            canvas::Stroke::default()
+                .with_color(Color::WHITE)
+                .with_width(2.0),
         );
         frame.stroke(
             &canvas::Path::circle(sel_pt, 5.0),
-            canvas::Stroke::default().with_color(Color::BLACK).with_width(1.0),
+            canvas::Stroke::default()
+                .with_color(Color::BLACK)
+                .with_width(1.0),
         );
 
         vec![frame.into_geometry()]
@@ -568,18 +584,24 @@ impl canvas::Program<PickerMessage> for ValueBarProgram {
                 if let Some(pos) = cursor.position_in(bounds) {
                     state.dragging = true;
                     let v = pick_v(pos.y);
-                    return Some(canvas::Action::publish(PickerMessage::ValueFromBar(v)).and_capture());
+                    return Some(
+                        canvas::Action::publish(PickerMessage::ValueFromBar(v)).and_capture(),
+                    );
                 }
                 None
             }
             canvas::Event::Mouse(mouse::Event::CursorMoved { .. }) if state.dragging => {
                 if let Some(pos) = cursor.position_in(bounds) {
                     let v = pick_v(pos.y);
-                    return Some(canvas::Action::publish(PickerMessage::ValueFromBar(v)).and_capture());
+                    return Some(
+                        canvas::Action::publish(PickerMessage::ValueFromBar(v)).and_capture(),
+                    );
                 }
                 Some(canvas::Action::capture())
             }
-            canvas::Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)) if state.dragging => {
+            canvas::Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left))
+                if state.dragging =>
+            {
                 state.dragging = false;
                 Some(canvas::Action::capture())
             }
@@ -613,7 +635,9 @@ impl canvas::Program<PickerMessage> for ValueBarProgram {
         let vy = (1.0 - self.v) * h;
         frame.stroke(
             &canvas::Path::line(Point::new(0.0, vy), Point::new(w, vy)),
-            canvas::Stroke::default().with_color(Color::WHITE).with_width(2.0),
+            canvas::Stroke::default()
+                .with_color(Color::WHITE)
+                .with_width(2.0),
         );
         frame.stroke_rectangle(
             Point::new(0.0, 0.0),
