@@ -1,4 +1,4 @@
-﻿//! Visual configuration for [`crate::editor::ColorMapEditor`].
+﻿//! Visual configuration for [`crate::ColorMapEditor`].
 use iced::Color;
 
 /// Default edge length of one grid cell in logical pixels (used by [`GridDrawStyle::default`]).
@@ -13,7 +13,7 @@ pub enum MapColorTarget {
     CellFill,
 }
 
-/// Canvas styling for the 16×16 byte grid (`Copy` for cheap passes into [`crate::editor::GridProgram`]).
+/// Canvas styling for the 16×16 byte grid (`Copy` for cheap passes into the editor grid canvas).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GridDrawStyle {
     /// Uniform fill behind each cell when [`map_color_target`](GridDrawStyle::map_color_target) is [`MapColorTarget::Text`].

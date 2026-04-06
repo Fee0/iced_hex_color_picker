@@ -1,12 +1,11 @@
 mod grid;
 mod picker;
 
-pub use grid::GridProgram;
-use grid::GridMessage;
+use grid::{GridMessage, GridProgram};
 use picker::{ColorPickerState, PICKER_PANEL_WIDTH};
 
 pub use picker::PickerMessage;
-pub use crate::style::{ColorMapEditorStyle, GridDrawStyle, MapColorTarget};
+use crate::style::{ColorMapEditorStyle, GridDrawStyle, MapColorTarget};
 use hex_color::presets::{ascii_classes, nibble_groups, AsciiClassColors, NibbleGroupColors};
 use hex_color::{ColorMap, Rgb};
 use iced::widget::canvas::Canvas;

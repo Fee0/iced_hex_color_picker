@@ -6,8 +6,9 @@ use iced::widget::canvas;
 use iced::widget::text as w_text;
 use iced::widget::{button, column, container, stack, text, toggler};
 use iced::{clipboard, Background, Border, Color, Element, Length, Point, Rectangle, Renderer, Size, Task, Theme};
-use iced_color_map::editor::{self, ColorMapEditor, Event};
-use iced_color_map::MapColorTarget;
+use iced_color_map::{
+    ColorMapEditor, Event, MapColorTarget, Message, PickerMessage,
+};
 
 fn main() -> iced::Result {
     iced::application(App::boot, App::update, App::view)
@@ -28,7 +29,7 @@ struct App {
 enum Msg {
     OpenEditor,
     MapColorFillToggled(bool),
-    Editor(editor::Message),
+    Editor(Message),
 }
 
 impl App {
@@ -65,7 +66,7 @@ impl App {
                 Task::none()
             }
             Msg::Editor(msg) => {
-                if matches!(&msg, editor::Message::Picker(editor::PickerMessage::CopyHex)) {
+                if matches!(&msg, Message::Picker(PickerMessage::CopyHex)) {
                     clipboard::write::<Msg>(self.editor.picker_hex_string())
                 } else if let Some(event) = self.editor.update(msg) {
                     match event {
