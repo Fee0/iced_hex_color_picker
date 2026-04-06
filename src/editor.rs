@@ -263,52 +263,46 @@ impl ColorMapEditor {
         let left = container(grid_bordered).width(Length::Shrink);
 
         let chrome_r = self.style.border_radius;
-        let actions = Row::new()
-            .push(Space::new().width(Length::Fill))
-            .push(
-                button(text("Cancel"))
-                    .on_press(Message::Cancel)
-                    .style(move |theme, status| {
+        let actions =
+            Row::new()
+                .push(Space::new().width(Length::Fill))
+                .push(button(text("Cancel")).on_press(Message::Cancel).style(
+                    move |theme, status| {
                         let mut s = button_primary_style(theme, status);
                         s.border.radius = chrome_r.into();
                         s
-                    }),
-            )
-            .push(
-                button(text("Accept"))
-                    .on_press(Message::Accept)
-                    .style(move |theme, status| {
+                    },
+                ))
+                .push(button(text("Accept")).on_press(Message::Accept).style(
+                    move |theme, status| {
                         let mut s = button_primary_style(theme, status);
                         s.border.radius = chrome_r.into();
                         s
-                    }),
-            )
-            .spacing(8)
-            .width(Length::Fill);
+                    },
+                ))
+                .spacing(8)
+                .width(Length::Fill);
 
         let mut right_col = Column::new()
             .spacing(12)
             .width(Length::Fixed(PICKER_PANEL_WIDTH));
         if self.style.show_presets {
             let r = self.style.border_radius;
-            let preset_dd: Element<Message> = pick_list(
-                PRESET_OPTIONS,
-                self.active_preset,
-                Message::PresetSelected,
-            )
-            .placeholder("Preset…")
-            .width(Length::Fill)
-            .style(move |theme, status| {
-                let mut s = pick_list_default_style(theme, status);
-                s.border.radius = r.into();
-                s
-            })
-            .menu_style(move |theme| {
-                let mut m = menu_default_style(theme);
-                m.border.radius = r.into();
-                m
-            })
-            .into();
+            let preset_dd: Element<Message> =
+                pick_list(PRESET_OPTIONS, self.active_preset, Message::PresetSelected)
+                    .placeholder("Preset…")
+                    .width(Length::Fill)
+                    .style(move |theme, status| {
+                        let mut s = pick_list_default_style(theme, status);
+                        s.border.radius = r.into();
+                        s
+                    })
+                    .menu_style(move |theme| {
+                        let mut m = menu_default_style(theme);
+                        m.border.radius = r.into();
+                        m
+                    })
+                    .into();
             right_col = right_col.push(preset_dd);
         }
         right_col = right_col
