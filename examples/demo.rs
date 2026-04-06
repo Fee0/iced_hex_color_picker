@@ -24,7 +24,6 @@ struct App {
     accepted_map: [Rgb; 256],
     editing: bool,
     map_color_target: MapColorTarget,
-    border_radius: f32,
 }
 
 #[derive(Debug, Clone)]
@@ -45,15 +44,11 @@ impl App {
             non_ascii: Rgb::from_hex(0x0066CC),
         });
         let table = *initial.as_table();
-        let border_radius = 4.0;
-        let mut editor = ColorMapEditor::new(&initial);
-        editor.set_border_radius(border_radius);
         Self {
-            editor,
+            editor: ColorMapEditor::new(&initial),
             accepted_map: table,
             editing: false,
             map_color_target: MapColorTarget::Text,
-            border_radius,
         }
     }
 
@@ -73,7 +68,6 @@ impl App {
                 Task::none()
             }
             Msg::BorderRadiusChanged(radius) => {
-                self.border_radius = radius;
                 self.editor.set_border_radius(radius);
                 Task::none()
             }
@@ -109,11 +103,8 @@ impl App {
         let map_fill_toggler = toggler(self.map_color_target == MapColorTarget::CellFill)
             .label("Show map colors in cell fills (else on hex labels)")
             .on_toggle(Msg::MapColorFillToggled);
-        let border_radius_slider = slider(
-            0.0..=20.0,
-            self.border_radius,
-            Msg::BorderRadiusChanged,
-        );
+        let border_radius = self.editor.style().border_radius;
+        let border_radius_slider = slider(0.0..=20.0, border_radius, Msg::BorderRadiusChanged);
 
         let main_view = container(
             column![
@@ -121,8 +112,7 @@ impl App {
                     .on_press(Msg::OpenEditor)
                     .padding(12),
                 map_fill_toggler,
-                text(format!("Editor border radius: {:.1}", self.border_radius))
-                    .size(14),
+                text(format!("Editor border radius: {:.1}", border_radius)).size(14),
                 border_radius_slider,
                 text("Current Color Map")
                     .size(14)
@@ -152,7 +142,7 @@ impl App {
                     ..Default::default()
                 });
 
-            let overlay_radius = self.border_radius;
+            let overlay_radius = border_radius;
             let editor_panel = container(self.editor.view().map(Msg::Editor))
                 .width(Length::Shrink)
                 .height(Length::Shrink)
