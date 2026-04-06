@@ -4,10 +4,19 @@ use iced::Color;
 /// Default edge length of one grid cell in logical pixels (used by [`GridDrawStyle::default`]).
 pub const DEFAULT_GRID_CELL_SIZE: f32 = 36.0;
 
+/// Where each byte’s map color is shown in the 16×16 grid.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MapColorTarget {
+    /// Map RGB on the hex label; cells use [`GridDrawStyle::cell_background`].
+    Text,
+    /// Map RGB as the cell fill; hex labels use black/white from luma.
+    CellFill,
+}
+
 /// Canvas styling for the 16×16 byte grid (`Copy` for cheap passes into [`crate::grid::GridProgram`]).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GridDrawStyle {
-    /// Uniform fill behind each cell (hex labels use the map color).
+    /// Uniform fill behind each cell when [`map_color_target`](GridDrawStyle::map_color_target) is [`MapColorTarget::Text`].
     pub cell_background: Color,
     /// Semi-transparent overlay on the selected index range.
     pub selection_overlay: Color,
@@ -17,6 +26,7 @@ pub struct GridDrawStyle {
     pub grid_line_color: Color,
     /// Edge length of one cell in logical pixels; total grid side is `16 * cell_size`.
     pub cell_size: f32,
+    pub map_color_target: MapColorTarget,
 }
 
 impl GridDrawStyle {
@@ -50,6 +60,7 @@ impl Default for GridDrawStyle {
                 a: 0.3,
             },
             cell_size: DEFAULT_GRID_CELL_SIZE,
+            map_color_target: MapColorTarget::Text,
         }
     }
 }

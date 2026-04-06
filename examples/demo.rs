@@ -4,9 +4,10 @@ use iced::alignment;
 use iced::mouse;
 use iced::widget::canvas;
 use iced::widget::text as w_text;
-use iced::widget::{button, column, container, stack, text};
+use iced::widget::{button, column, container, stack, text, toggler};
 use iced::{clipboard, Background, Border, Color, Element, Length, Point, Rectangle, Renderer, Size, Task, Theme};
 use iced_color_map::editor::{self, ColorMapEditor, Event};
+use iced_color_map::MapColorTarget;
 
 fn main() -> iced::Result {
     iced::application(App::boot, App::update, App::view)
@@ -20,11 +21,13 @@ struct App {
     editor: ColorMapEditor,
     accepted_map: [Rgb; 256],
     editing: bool,
+    map_color_target: MapColorTarget,
 }
 
 #[derive(Debug, Clone)]
 enum Msg {
     OpenEditor,
+    MapColorFillToggled(bool),
     Editor(editor::Message),
 }
 
@@ -42,6 +45,7 @@ impl App {
             editor: ColorMapEditor::new(&initial),
             accepted_map: table,
             editing: false,
+            map_color_target: MapColorTarget::Text,
         }
     }
 
@@ -49,6 +53,15 @@ impl App {
         match message {
             Msg::OpenEditor => {
                 self.editing = true;
+                Task::none()
+            }
+            Msg::MapColorFillToggled(fill_cells) => {
+                self.map_color_target = if fill_cells {
+                    MapColorTarget::CellFill
+                } else {
+                    MapColorTarget::Text
+                };
+                self.editor.set_map_color_target(self.map_color_target);
                 Task::none()
             }
             Msg::Editor(msg) => {
@@ -75,15 +88,21 @@ impl App {
     fn view(&self) -> Element<Msg> {
         let preview_grid = canvas(PreviewProgram {
             colors: &self.accepted_map,
+            map_target: self.map_color_target,
         })
         .width(Length::Fixed(PREVIEW_SIDE))
         .height(Length::Fixed(PREVIEW_SIDE));
+
+        let map_fill_toggler = toggler(self.map_color_target == MapColorTarget::CellFill)
+            .label("Show map colors in cell fills (else on hex labels)")
+            .on_toggle(Msg::MapColorFillToggled);
 
         let main_view = container(
             column![
                 button(text("Edit Color Map").size(16))
                     .on_press(Msg::OpenEditor)
                     .padding(12),
+                map_fill_toggler,
                 text("Current Color Map").size(14).font(iced::Font::MONOSPACE),
                 preview_grid,
             ]
@@ -153,9 +172,11 @@ impl App {
 
 const PREVIEW_CELL: f32 = 28.0;
 const PREVIEW_SIDE: f32 = PREVIEW_CELL * 16.0;
+const PREVIEW_TEXT_MODE_BG: Color = Color::from_rgb8(0x2A, 0x2A, 0x2A);
 
 struct PreviewProgram<'a> {
     colors: &'a [Rgb; 256],
+    map_target: MapColorTarget,
 }
 
 impl<'a> canvas::Program<Msg> for PreviewProgram<'a> {
@@ -180,22 +201,27 @@ impl<'a> canvas::Program<Msg> for PreviewProgram<'a> {
             let y = (i / 16) as f32 * ch;
             let rgb = self.colors[b as usize];
 
-            frame.fill_rectangle(
-                Point::new(x, y),
-                Size::new(cw, ch),
-                Color::from_rgb8(rgb.r, rgb.g, rgb.b),
-            );
+            let fill = match self.map_target {
+                MapColorTarget::Text => PREVIEW_TEXT_MODE_BG,
+                MapColorTarget::CellFill => Color::from_rgb8(rgb.r, rgb.g, rgb.b),
+            };
+            frame.fill_rectangle(Point::new(x, y), Size::new(cw, ch), fill);
 
-            let lum = 0.299 * rgb.r as f32 + 0.587 * rgb.g as f32 + 0.114 * rgb.b as f32;
-            let tc = if lum > 128.0 {
-                Color::BLACK
-            } else {
-                Color::WHITE
+            let label_color = match self.map_target {
+                MapColorTarget::Text => Color::from_rgb8(rgb.r, rgb.g, rgb.b),
+                MapColorTarget::CellFill => {
+                    let lum = 0.299 * rgb.r as f32 + 0.587 * rgb.g as f32 + 0.114 * rgb.b as f32;
+                    if lum > 128.0 {
+                        Color::BLACK
+                    } else {
+                        Color::WHITE
+                    }
+                }
             };
             frame.fill_text(canvas::Text {
                 content: format!("{b:02X}"),
                 position: Point::new(x + cw / 2.0, y + ch / 2.0),
-                color: tc,
+                color: label_color,
                 size: 10.0.into(),
                 font: iced::Font::MONOSPACE,
                 align_x: w_text::Alignment::Center,

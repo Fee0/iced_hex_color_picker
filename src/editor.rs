@@ -2,7 +2,7 @@ use crate::grid::{GridMessage, GridProgram};
 use crate::picker::{ColorPickerState, PICKER_PANEL_WIDTH};
 
 pub use crate::picker::PickerMessage;
-pub use crate::style::{ColorMapEditorStyle, GridDrawStyle};
+pub use crate::style::{ColorMapEditorStyle, GridDrawStyle, MapColorTarget};
 use hex_color::presets::{ascii_classes, nibble_groups, AsciiClassColors, NibbleGroupColors};
 use hex_color::{ColorMap, Rgb};
 use iced::widget::canvas::Canvas;
@@ -126,6 +126,10 @@ impl ColorMapEditor {
 
     pub fn set_grid_cell_size(&mut self, s: f32) {
         self.style.grid.cell_size = s;
+    }
+
+    pub fn set_map_color_target(&mut self, target: MapColorTarget) {
+        self.style.grid.map_color_target = target;
     }
 
     pub fn set_grid_border_color(&mut self, c: Color) {

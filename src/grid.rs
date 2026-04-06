@@ -1,4 +1,4 @@
-use crate::style::GridDrawStyle;
+use crate::style::{GridDrawStyle, MapColorTarget};
 use hex_color::Rgb;
 use iced::mouse;
 use iced::widget::canvas;
@@ -22,6 +22,15 @@ pub struct GridProgram<'a> {
 pub struct GridInteraction {
     anchor: Option<u8>,
     dragging: bool,
+}
+
+fn label_contrast_for_rgb(rgb: Rgb) -> Color {
+    let lum = 0.299 * rgb.r as f32 + 0.587 * rgb.g as f32 + 0.114 * rgb.b as f32;
+    if lum > 128.0 {
+        Color::BLACK
+    } else {
+        Color::WHITE
+    }
 }
 
 fn hit_test(pos: Point, size: Size) -> Option<u8> {
@@ -203,9 +212,15 @@ impl<'a> canvas::Program<GridMessage> for GridProgram<'a> {
         let st = self.draw_style;
 
         for i in 0u16..256 {
+            let b = i as u8;
             let x = (i % 16) as f32 * cw;
             let y = (i / 16) as f32 * ch;
-            frame.fill_rectangle(Point::new(x, y), Size::new(cw, ch), st.cell_background);
+            let rgb = self.colors[b as usize];
+            let fill = match st.map_color_target {
+                MapColorTarget::Text => st.cell_background,
+                MapColorTarget::CellFill => Color::from_rgb8(rgb.r, rgb.g, rgb.b),
+            };
+            frame.fill_rectangle(Point::new(x, y), Size::new(cw, ch), fill);
         }
 
         if let Some((lo, hi)) = self.selection {
@@ -234,10 +249,14 @@ impl<'a> canvas::Program<GridMessage> for GridProgram<'a> {
             let x = (i % 16) as f32 * cw;
             let y = (i / 16) as f32 * ch;
             let rgb = self.colors[b as usize];
+            let label_color = match st.map_color_target {
+                MapColorTarget::Text => Color::from_rgb8(rgb.r, rgb.g, rgb.b),
+                MapColorTarget::CellFill => label_contrast_for_rgb(rgb),
+            };
             frame.fill_text(canvas::Text {
                 content: format!("{b:02X}"),
                 position: Point::new(x + cw / 2.0, y + ch / 2.0),
-                color: Color::from_rgb8(rgb.r, rgb.g, rgb.b),
+                color: label_color,
                 size: 11.0.into(),
                 font: iced::Font::MONOSPACE,
                 align_x: w_text::Alignment::Center,
