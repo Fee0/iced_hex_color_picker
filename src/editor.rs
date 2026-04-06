@@ -102,10 +102,6 @@ impl ColorMapEditor {
         &self.style
     }
 
-    pub fn style_mut(&mut self) -> &mut ColorMapEditorStyle {
-        &mut self.style
-    }
-
     pub fn set_style(&mut self, style: ColorMapEditorStyle) {
         self.style = style;
     }
