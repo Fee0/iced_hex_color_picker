@@ -1,12 +1,10 @@
+use crate::style::GridDrawStyle;
 use hex_color::Rgb;
 use iced::mouse;
 use iced::widget::canvas;
 use iced::widget::text as w_text;
 use iced::{alignment, Color, Point, Rectangle, Renderer, Size, Theme};
 use std::collections::{HashMap, HashSet};
-
-pub const CELL_SIZE: f32 = 36.0;
-pub const GRID_SIDE: f32 = CELL_SIZE * 16.0;
 
 #[derive(Debug, Clone)]
 pub enum GridMessage {
@@ -17,6 +15,7 @@ pub enum GridMessage {
 pub struct GridProgram<'a> {
     pub colors: &'a [Rgb; 256],
     pub selection: Option<(u8, u8)>,
+    pub draw_style: GridDrawStyle,
 }
 
 #[derive(Default)]
@@ -136,20 +135,6 @@ fn boundary_loops_as_paths(edge_rem: &mut HashSet<(GridCorner, GridCorner)>, cw:
     paths
 }
 
-const SELECTION_TINT: Color = Color {
-    r: 0.3,
-    g: 0.55,
-    b: 1.0,
-    a: 0.28,
-};
-
-const SELECTION_STROKE: Color = Color {
-    r: 0.4,
-    g: 0.65,
-    b: 1.0,
-    a: 0.9,
-};
-
 impl<'a> canvas::Program<GridMessage> for GridProgram<'a> {
     type State = GridInteraction;
 
@@ -215,18 +200,12 @@ impl<'a> canvas::Program<GridMessage> for GridProgram<'a> {
         let mut frame = canvas::Frame::new(renderer, sz);
         let cw = sz.width / 16.0;
         let ch = sz.height / 16.0;
+        let st = self.draw_style;
 
         for i in 0u16..256 {
-            let b = i as u8;
             let x = (i % 16) as f32 * cw;
             let y = (i / 16) as f32 * ch;
-            let rgb = self.colors[b as usize];
-
-            frame.fill_rectangle(
-                Point::new(x, y),
-                Size::new(cw, ch),
-                Color::from_rgb8(rgb.r, rgb.g, rgb.b),
-            );
+            frame.fill_rectangle(Point::new(x, y), Size::new(cw, ch), st.cell_background);
         }
 
         if let Some((lo, hi)) = self.selection {
@@ -237,12 +216,14 @@ impl<'a> canvas::Program<GridMessage> for GridProgram<'a> {
                 frame.fill_rectangle(
                     Point::new(x, y),
                     Size::new(cw, ch),
-                    SELECTION_TINT,
+                    st.selection_overlay,
                 );
             }
 
             let mut edges = selection_boundary_edges(lo, hi);
-            let stroke = canvas::Stroke::default().with_color(SELECTION_STROKE).with_width(1.5);
+            let stroke = canvas::Stroke::default()
+                .with_color(st.selection_outline)
+                .with_width(st.selection_outline_width);
             for path in boundary_loops_as_paths(&mut edges, cw, ch) {
                 frame.stroke(&path, stroke);
             }
@@ -253,16 +234,10 @@ impl<'a> canvas::Program<GridMessage> for GridProgram<'a> {
             let x = (i % 16) as f32 * cw;
             let y = (i / 16) as f32 * ch;
             let rgb = self.colors[b as usize];
-            let lum = 0.299 * rgb.r as f32 + 0.587 * rgb.g as f32 + 0.114 * rgb.b as f32;
-            let tc = if lum > 128.0 {
-                Color::BLACK
-            } else {
-                Color::WHITE
-            };
             frame.fill_text(canvas::Text {
                 content: format!("{b:02X}"),
                 position: Point::new(x + cw / 2.0, y + ch / 2.0),
-                color: tc,
+                color: Color::from_rgb8(rgb.r, rgb.g, rgb.b),
                 size: 11.0.into(),
                 font: iced::Font::MONOSPACE,
                 align_x: w_text::Alignment::Center,
@@ -271,25 +246,19 @@ impl<'a> canvas::Program<GridMessage> for GridProgram<'a> {
             });
         }
 
-        let line_color = Color {
-            r: 0.5,
-            g: 0.5,
-            b: 0.5,
-            a: 0.3,
-        };
         for j in 0..=16 {
             let x = j as f32 * cw;
             let y = j as f32 * ch;
             frame.stroke(
                 &canvas::Path::line(Point::new(x, 0.0), Point::new(x, sz.height)),
                 canvas::Stroke::default()
-                    .with_color(line_color)
+                    .with_color(st.grid_line_color)
                     .with_width(0.5),
             );
             frame.stroke(
                 &canvas::Path::line(Point::new(0.0, y), Point::new(sz.width, y)),
                 canvas::Stroke::default()
-                    .with_color(line_color)
+                    .with_color(st.grid_line_color)
                     .with_width(0.5),
             );
         }

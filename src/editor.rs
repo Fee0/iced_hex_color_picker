@@ -1,7 +1,8 @@
-use crate::grid::{GridMessage, GridProgram, GRID_SIDE};
+use crate::grid::{GridMessage, GridProgram};
 use crate::picker::{ColorPickerState, PICKER_PANEL_WIDTH};
 
 pub use crate::picker::PickerMessage;
+pub use crate::style::{ColorMapEditorStyle, GridDrawStyle};
 use hex_color::presets::{ascii_classes, nibble_groups, AsciiClassColors, NibbleGroupColors};
 use hex_color::{ColorMap, Rgb};
 use iced::widget::canvas::Canvas;
@@ -46,6 +47,7 @@ pub struct ColorMapEditor {
     selection: Option<(u8, u8)>,
     picker_state: ColorPickerState,
     active_preset: Option<PresetKind>,
+    style: ColorMapEditorStyle,
 }
 
 fn rgb_to_iced(rgb: Rgb) -> Color {
@@ -71,6 +73,10 @@ fn apply_picker_to_selection(draft: &mut [Rgb; 256], selection: Option<(u8, u8)>
 
 impl ColorMapEditor {
     pub fn new(initial: &ColorMap) -> Self {
+        Self::new_with_style(initial, ColorMapEditorStyle::default())
+    }
+
+    pub fn new_with_style(initial: &ColorMap, style: ColorMapEditorStyle) -> Self {
         let table = *initial.as_table();
         Self {
             draft: table,
@@ -78,7 +84,64 @@ impl ColorMapEditor {
             selection: Some((0, 0)),
             picker_state: ColorPickerState::from_color(rgb_to_iced(table[0])),
             active_preset: None,
+            style,
         }
+    }
+
+    pub fn style(&self) -> &ColorMapEditorStyle {
+        &self.style
+    }
+
+    pub fn style_mut(&mut self) -> &mut ColorMapEditorStyle {
+        &mut self.style
+    }
+
+    pub fn set_style(&mut self, style: ColorMapEditorStyle) {
+        self.style = style;
+    }
+
+    pub fn set_grid_draw_style(&mut self, grid: GridDrawStyle) {
+        self.style.grid = grid;
+    }
+
+    pub fn set_grid_cell_background(&mut self, c: Color) {
+        self.style.grid.cell_background = c;
+    }
+
+    pub fn set_selection_overlay(&mut self, c: Color) {
+        self.style.grid.selection_overlay = c;
+    }
+
+    pub fn set_selection_outline(&mut self, c: Color) {
+        self.style.grid.selection_outline = c;
+    }
+
+    pub fn set_selection_outline_width(&mut self, w: f32) {
+        self.style.grid.selection_outline_width = w;
+    }
+
+    pub fn set_grid_line_color(&mut self, c: Color) {
+        self.style.grid.grid_line_color = c;
+    }
+
+    pub fn set_grid_cell_size(&mut self, s: f32) {
+        self.style.grid.cell_size = s;
+    }
+
+    pub fn set_grid_border_color(&mut self, c: Color) {
+        self.style.grid_border_color = c;
+    }
+
+    pub fn set_grid_border_width(&mut self, w: f32) {
+        self.style.grid_border_width = w;
+    }
+
+    pub fn set_grid_border_radius(&mut self, r: f32) {
+        self.style.grid_border_radius = r;
+    }
+
+    pub fn set_show_presets(&mut self, show: bool) {
+        self.style.show_presets = show;
     }
 
     pub fn picker_hex_string(&self) -> String {
@@ -160,35 +223,27 @@ impl ColorMapEditor {
     }
 
     pub fn view(&self) -> Element<Message> {
-        let preset_dd: Element<Message> = pick_list(
-            PRESET_OPTIONS,
-            self.active_preset,
-            Message::PresetSelected,
-        )
-        .placeholder("Preset…")
-        .width(Length::Fill)
-        .into();
+        let grid_side = self.style.grid.grid_side();
 
         let program = GridProgram {
             colors: &self.draft,
             selection: self.selection,
+            draw_style: self.style.grid,
         };
         let grid: Element<GridMessage> = Canvas::new(program)
-            .width(Length::Fixed(GRID_SIDE))
-            .height(Length::Fixed(GRID_SIDE))
+            .width(Length::Fixed(grid_side))
+            .height(Length::Fixed(grid_side))
             .into();
         let grid = grid.map(Message::Grid);
 
-        let grid_bordered = container(grid).style(|_theme: &Theme| container::Style {
+        let bc = self.style.grid_border_color;
+        let bw = self.style.grid_border_width;
+        let br = self.style.grid_border_radius;
+        let grid_bordered = container(grid).style(move |_theme: &Theme| container::Style {
             border: Border {
-                color: Color {
-                    r: 0.55,
-                    g: 0.55,
-                    b: 0.58,
-                    a: 0.85,
-                },
-                width: 1.0,
-                radius: 4.0.into(),
+                color: bc,
+                width: bw,
+                radius: br.into(),
             },
             ..Default::default()
         });
@@ -202,21 +257,26 @@ impl ColorMapEditor {
             .spacing(8)
             .width(Length::Fill);
 
-        let right = container(
-            Column::new()
-                .push(preset_dd)
-                .push(
-                    self.picker_state
-                        .view()
-                        .map(Message::Picker),
-                )
-                .push(Space::new().height(Length::Fill))
-                .push(actions)
-                .spacing(12)
-                .width(Length::Fixed(PICKER_PANEL_WIDTH)),
-        )
-        .width(Length::Fixed(PICKER_PANEL_WIDTH))
-        .height(Length::Fill);
+        let mut right_col = Column::new().spacing(12).width(Length::Fixed(PICKER_PANEL_WIDTH));
+        if self.style.show_presets {
+            let preset_dd: Element<Message> = pick_list(
+                PRESET_OPTIONS,
+                self.active_preset,
+                Message::PresetSelected,
+            )
+            .placeholder("Preset…")
+            .width(Length::Fill)
+            .into();
+            right_col = right_col.push(preset_dd);
+        }
+        right_col = right_col
+            .push(self.picker_state.view().map(Message::Picker))
+            .push(Space::new().height(Length::Fill))
+            .push(actions);
+
+        let right = container(right_col)
+            .width(Length::Fixed(PICKER_PANEL_WIDTH))
+            .height(Length::Fill);
 
         let body = Row::new()
             .push(left)
