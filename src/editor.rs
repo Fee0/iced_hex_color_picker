@@ -7,7 +7,10 @@ use picker::{ColorPickerState, PICKER_PANEL_WIDTH};
 use crate::style::{ColorMapEditorStyle, GridDrawStyle, MapColorTarget};
 use hex_color::presets::{AsciiClassColors, NibbleGroupColors, ascii_classes, nibble_groups};
 use hex_color::{ColorMap, Rgb};
+use iced::widget::button::primary as button_primary_style;
 use iced::widget::canvas::Canvas;
+use iced::widget::overlay::menu::default as menu_default_style;
+use iced::widget::pick_list::default as pick_list_default_style;
 use iced::widget::{Column, MouseArea, Row, Space, button, container, pick_list, text};
 use iced::{Border, Color, Element, Length, Theme, mouse};
 pub use picker::PickerMessage;
@@ -147,8 +150,8 @@ impl ColorMapEditor {
         self.style.grid_border_width = w;
     }
 
-    pub fn set_grid_border_radius(&mut self, r: f32) {
-        self.style.grid_border_radius = r;
+    pub fn set_border_radius(&mut self, r: f32) {
+        self.style.border_radius = r;
     }
 
     pub fn set_show_presets(&mut self, show: bool) {
@@ -233,6 +236,8 @@ impl ColorMapEditor {
         None
     }
 
+    /// Editor content only (no outer dialog shell). Use [`ColorMapEditorStyle::border_radius`] when
+    /// styling a host-provided frame around this view.
     pub fn view(&self) -> Element<Message> {
         let grid_side = self.style.grid.grid_side();
 
@@ -249,7 +254,7 @@ impl ColorMapEditor {
 
         let bc = self.style.grid_border_color;
         let bw = self.style.grid_border_width;
-        let br = self.style.grid_border_radius;
+        let br = self.style.border_radius;
         let grid_bordered = container(grid).style(move |_theme: &Theme| container::Style {
             border: Border {
                 color: bc,
@@ -261,10 +266,27 @@ impl ColorMapEditor {
 
         let left = container(grid_bordered).width(Length::Shrink);
 
+        let chrome_r = self.style.border_radius;
         let actions = Row::new()
             .push(Space::new().width(Length::Fill))
-            .push(button(text("Cancel")).on_press(Message::Cancel))
-            .push(button(text("Accept")).on_press(Message::Accept))
+            .push(
+                button(text("Cancel"))
+                    .on_press(Message::Cancel)
+                    .style(move |theme, status| {
+                        let mut s = button_primary_style(theme, status);
+                        s.border.radius = chrome_r.into();
+                        s
+                    }),
+            )
+            .push(
+                button(text("Accept"))
+                    .on_press(Message::Accept)
+                    .style(move |theme, status| {
+                        let mut s = button_primary_style(theme, status);
+                        s.border.radius = chrome_r.into();
+                        s
+                    }),
+            )
             .spacing(8)
             .width(Length::Fill);
 
@@ -272,15 +294,33 @@ impl ColorMapEditor {
             .spacing(12)
             .width(Length::Fixed(PICKER_PANEL_WIDTH));
         if self.style.show_presets {
-            let preset_dd: Element<Message> =
-                pick_list(PRESET_OPTIONS, self.active_preset, Message::PresetSelected)
-                    .placeholder("Preset…")
-                    .width(Length::Fill)
-                    .into();
+            let r = self.style.border_radius;
+            let preset_dd: Element<Message> = pick_list(
+                PRESET_OPTIONS,
+                self.active_preset,
+                Message::PresetSelected,
+            )
+            .placeholder("Preset…")
+            .width(Length::Fill)
+            .style(move |theme, status| {
+                let mut s = pick_list_default_style(theme, status);
+                s.border.radius = r.into();
+                s
+            })
+            .menu_style(move |theme| {
+                let mut m = menu_default_style(theme);
+                m.border.radius = r.into();
+                m
+            })
+            .into();
             right_col = right_col.push(preset_dd);
         }
         right_col = right_col
-            .push(self.picker_state.view().map(Message::Picker))
+            .push(
+                self.picker_state
+                    .view(self.style.border_radius)
+                    .map(Message::Picker),
+            )
             .push(Space::new().height(Length::Fill))
             .push(actions);
 

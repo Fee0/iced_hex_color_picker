@@ -1,4 +1,4 @@
-//! Visual configuration for [`crate::ColorMapEditor`].
+﻿//! Visual configuration for [`crate::ColorMapEditor`].
 use iced::Color;
 
 /// Default edge length of one grid cell in logical pixels (used by [`GridDrawStyle::default`]).
@@ -71,7 +71,10 @@ pub struct ColorMapEditorStyle {
     pub grid: GridDrawStyle,
     pub grid_border_color: Color,
     pub grid_border_width: f32,
-    pub grid_border_radius: f32,
+    /// Corner border radius for the grid frame, picker, preset list, and actions. The returned
+    /// [`crate::ColorMapEditor::view`] tree does not include an outer window frame; hosts may wrap
+    /// the editor and use this value for panel chrome (e.g. modal overlay borders).
+    pub border_radius: f32,
     pub show_presets: bool,
 }
 
@@ -86,7 +89,7 @@ impl Default for ColorMapEditorStyle {
                 a: 0.85,
             },
             grid_border_width: 1.0,
-            grid_border_radius: 4.0,
+            border_radius: 4.0,
             show_presets: true,
         }
     }

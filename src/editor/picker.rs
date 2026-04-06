@@ -211,7 +211,8 @@ impl ColorPickerState {
         }
     }
 
-    pub fn view(&self) -> Element<PickerMessage> {
+    pub fn view(&self, border_radius: f32) -> Element<PickerMessage> {
+        let hex_border_radius = (border_radius * 0.5).max(1.0);
         let (r, g, b) = self.rgb8();
         let preview_color = self.to_color();
         let label_color = contrast_text_color(r, g, b);
@@ -233,7 +234,7 @@ impl ColorPickerState {
                                 a: 0.0,
                             }),
                             border: Border {
-                                radius: 2.0.into(),
+                                radius: hex_border_radius.into(),
                                 width: match status {
                                     text_input::Status::Focused { .. } => 1.0,
                                     _ => 0.0,
@@ -270,7 +271,7 @@ impl ColorPickerState {
                             text_color: label_color,
                             border: Border {
                                 width: 0.0,
-                                radius: 4.0.into(),
+                                radius: border_radius.into(),
                                 ..Border::default()
                             },
                             shadow: Shadow::default(),
@@ -292,7 +293,7 @@ impl ColorPickerState {
                 border: Border {
                     color: Color::WHITE,
                     width: 1.0,
-                    radius: 4.0.into(),
+                    radius: border_radius.into(),
                 },
                 ..Default::default()
             });

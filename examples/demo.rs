@@ -4,7 +4,7 @@ use iced::alignment;
 use iced::mouse;
 use iced::widget::canvas;
 use iced::widget::text as w_text;
-use iced::widget::{button, column, container, stack, text, toggler};
+use iced::widget::{button, column, container, slider, stack, text, toggler};
 use iced::{
     Background, Border, Color, Element, Length, Point, Rectangle, Renderer, Size, Task, Theme,
     clipboard,
@@ -24,12 +24,14 @@ struct App {
     accepted_map: [Rgb; 256],
     editing: bool,
     map_color_target: MapColorTarget,
+    border_radius: f32,
 }
 
 #[derive(Debug, Clone)]
 enum Msg {
     OpenEditor,
     MapColorFillToggled(bool),
+    BorderRadiusChanged(f32),
     Editor(Message),
 }
 
@@ -43,11 +45,15 @@ impl App {
             non_ascii: Rgb::from_hex(0x0066CC),
         });
         let table = *initial.as_table();
+        let border_radius = 4.0;
+        let mut editor = ColorMapEditor::new(&initial);
+        editor.set_border_radius(border_radius);
         Self {
-            editor: ColorMapEditor::new(&initial),
+            editor,
             accepted_map: table,
             editing: false,
             map_color_target: MapColorTarget::Text,
+            border_radius,
         }
     }
 
@@ -64,6 +70,11 @@ impl App {
                     MapColorTarget::Text
                 };
                 self.editor.set_map_color_target(self.map_color_target);
+                Task::none()
+            }
+            Msg::BorderRadiusChanged(radius) => {
+                self.border_radius = radius;
+                self.editor.set_border_radius(radius);
                 Task::none()
             }
             Msg::Editor(msg) => {
@@ -98,6 +109,11 @@ impl App {
         let map_fill_toggler = toggler(self.map_color_target == MapColorTarget::CellFill)
             .label("Show map colors in cell fills (else on hex labels)")
             .on_toggle(Msg::MapColorFillToggled);
+        let border_radius_slider = slider(
+            0.0..=20.0,
+            self.border_radius,
+            Msg::BorderRadiusChanged,
+        );
 
         let main_view = container(
             column![
@@ -105,6 +121,9 @@ impl App {
                     .on_press(Msg::OpenEditor)
                     .padding(12),
                 map_fill_toggler,
+                text(format!("Editor border radius: {:.1}", self.border_radius))
+                    .size(14),
+                border_radius_slider,
                 text("Current Color Map")
                     .size(14)
                     .font(iced::Font::MONOSPACE),
@@ -133,10 +152,11 @@ impl App {
                     ..Default::default()
                 });
 
+            let overlay_radius = self.border_radius;
             let editor_panel = container(self.editor.view().map(Msg::Editor))
                 .width(Length::Shrink)
                 .height(Length::Shrink)
-                .style(|_theme: &Theme| container::Style {
+                .style(move |_theme: &Theme| container::Style {
                     background: Some(Background::Color(Color {
                         r: 0.15,
                         g: 0.15,
@@ -151,7 +171,7 @@ impl App {
                             a: 1.0,
                         },
                         width: 1.0,
-                        radius: 8.0.into(),
+                        radius: overlay_radius.into(),
                     },
                     ..Default::default()
                 })
