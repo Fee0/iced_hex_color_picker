@@ -287,16 +287,11 @@ impl<'a> canvas::Program<GridMessage> for GridProgram<'a> {
 
     fn mouse_interaction(
         &self,
-        state: &Self::State,
-        bounds: Rectangle,
-        cursor: mouse::Cursor,
+        _state: &Self::State,
+        _bounds: Rectangle,
+        _cursor: mouse::Cursor,
     ) -> mouse::Interaction {
-        if state.dragging {
-            mouse::Interaction::Crosshair
-        } else if cursor.is_over(bounds) {
-            mouse::Interaction::Pointer
-        } else {
-            mouse::Interaction::default()
-        }
+        // Keep the system cursor; range selection should not switch to pointer/crosshair.
+        mouse::Interaction::default()
     }
 }

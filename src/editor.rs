@@ -6,8 +6,8 @@ pub use crate::style::{ColorMapEditorStyle, GridDrawStyle, MapColorTarget};
 use hex_color::presets::{ascii_classes, nibble_groups, AsciiClassColors, NibbleGroupColors};
 use hex_color::{ColorMap, Rgb};
 use iced::widget::canvas::Canvas;
-use iced::widget::{button, container, pick_list, text, Column, Row, Space};
-use iced::{Border, Color, Element, Length, Theme};
+use iced::widget::{button, container, pick_list, text, Column, MouseArea, Row, Space};
+use iced::{mouse, Border, Color, Element, Length, Theme};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PresetKind {
@@ -287,9 +287,16 @@ impl ColorMapEditor {
             .push(right)
             .spacing(16);
 
-        container(body.padding(16))
-            .width(Length::Shrink)
-            .height(Length::Shrink)
-            .into()
+        // When inner widgets return `Interaction::None` (e.g. the byte grid), a parent
+        // `Stack` would otherwise fall through to widgets underneath and adopt their
+        // cursor. `Idle` maps to the default arrow and is non-`None`, so the modal
+        // blocks that bleed-through while still allowing `Pointer` from buttons/picker.
+        MouseArea::new(
+            container(body.padding(16))
+                .width(Length::Shrink)
+                .height(Length::Shrink),
+        )
+        .interaction(mouse::Interaction::Idle)
+        .into()
     }
 }
