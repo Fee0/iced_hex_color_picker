@@ -11,7 +11,7 @@ use iced_color_map::MapColorTarget;
 
 fn main() -> iced::Result {
     iced::application(App::boot, App::update, App::view)
-        .title("Color Map Editor â€” Demo")
+        .title("Color Map Editor Demo")
         .theme(Theme::Dark)
         .centered()
         .run()
