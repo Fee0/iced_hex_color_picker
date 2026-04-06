@@ -13,7 +13,7 @@ pub enum MapColorTarget {
     CellFill,
 }
 
-/// Canvas styling for the 16×16 byte grid (`Copy` for cheap passes into [`crate::grid::GridProgram`]).
+/// Canvas styling for the 16×16 byte grid (`Copy` for cheap passes into [`crate::editor::GridProgram`]).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GridDrawStyle {
     /// Uniform fill behind each cell when [`map_color_target`](GridDrawStyle::map_color_target) is [`MapColorTarget::Text`].
